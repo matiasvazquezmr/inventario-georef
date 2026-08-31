@@ -20,6 +20,23 @@ var App = (function () {
     central_zona: 'Central de zona'
   };
 
+  /* En un celular no se puede abrir la consola, asi que
+     cualquier error tiene que verse en la pantalla.       */
+  function mostrarFatal(msg) {
+    var f = document.getElementById('fatal');
+    if (!f) { alert(msg); return; }
+    f.hidden = false;
+    f.textContent = 'Algo se rompió\n\n' + msg
+      + '\n\nTocá «Revisar configuración» para ver qué falta.';
+  }
+
+  window.addEventListener('error', function (e) {
+    mostrarFatal((e.message || 'Error') + '\n' + (e.filename || '') + ':' + (e.lineno || ''));
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    mostrarFatal(String((e.reason && e.reason.message) || e.reason));
+  });
+
   /* ------------------- arranque ------------------- */
 
   function iniciar() {
@@ -43,6 +60,7 @@ var App = (function () {
     el.entrada.addEventListener('input', debounce(buscar, 160));
     document.getElementById('sincronizar').addEventListener('click', sincronizar);
     document.getElementById('entrar').addEventListener('click', entrar);
+    document.getElementById('revisar').addEventListener('click', diagnosticar);
 
     if (Almacen.pref('relevador')) mostrarPrincipal();
     else mostrarPortada();
@@ -62,17 +80,26 @@ var App = (function () {
       return r.activo !== false && r.activo !== 'FALSE';
     }) : [];
 
+    var manual = document.getElementById('nombreManual');
+    var aviso = document.getElementById('avisoPortada');
+
     el.selector.innerHTML = '';
+
     if (!lista.length) {
-      var o = document.createElement('option');
-      o.value = '';
-      o.textContent = 'Todavía no hay nadie cargado';
-      el.selector.appendChild(o);
-      el.selector.disabled = true;
-      document.getElementById('entrar').disabled = true;
-      document.getElementById('avisoPortada').hidden = false;
+      /* Sin padrón no se puede quedar en un callejón sin salida:
+         se escribe el nombre a mano y se sigue.                  */
+      el.selector.hidden = true;
+      manual.hidden = false;
+      aviso.hidden = false;
+      document.getElementById('entrar').disabled = false;
       return;
     }
+
+    el.selector.hidden = false;
+    manual.hidden = true;
+    aviso.hidden = true;
+    document.getElementById('entrar').disabled = false;
+
     lista.forEach(function (r) {
       var o = document.createElement('option');
       o.value = r.nombre;
@@ -82,10 +109,72 @@ var App = (function () {
   }
 
   function entrar() {
-    var n = el.selector.value;
-    if (!n) return;
+    var manual = document.getElementById('nombreManual');
+    var n = manual.hidden ? el.selector.value : manual.value.trim();
+    if (!n) { manual.focus(); return; }
     Almacen.pref('relevador', n);
     mostrarPrincipal();
+  }
+
+  /* ------------------- diagnóstico ------------------- */
+
+  function diagnosticar() {
+    var caja = document.getElementById('diagnostico');
+    caja.hidden = false;
+    var lineas = [];
+
+    function marcar(ok, texto) { lineas.push((ok ? '✓  ' : '✗  ') + texto); }
+
+    marcar(typeof POSGAR !== 'undefined', 'js/posgar.js cargado');
+    marcar(typeof CONFIG !== 'undefined', 'js/config.js cargado');
+    marcar(typeof Almacen !== 'undefined', 'js/almacen.js cargado');
+    marcar(typeof Buscador !== 'undefined', 'js/buscador.js cargado');
+    marcar(typeof Sync !== 'undefined', 'js/sync.js cargado');
+
+    var hayApi = typeof CONFIG !== 'undefined' && !!CONFIG.API;
+    marcar(hayApi, hayApi ? 'CONFIG.API configurada' : 'CONFIG.API está vacía en js/config.js');
+
+    marcar(location.protocol === 'https:', 'servido por HTTPS (el GPS lo exige)');
+    marcar(!!navigator.geolocation, 'el navegador expone GPS');
+
+    try {
+      localStorage.setItem('gs.test', '1');
+      localStorage.removeItem('gs.test');
+      marcar(true, 'almacenamiento local disponible');
+    } catch (e) {
+      marcar(false, 'almacenamiento local bloqueado (¿modo incógnito?)');
+    }
+
+    marcar(navigator.onLine !== false, 'hay conexión a internet');
+
+    if (typeof Almacen !== 'undefined') {
+      var p = Almacen.padron();
+      marcar(!!(p && p.instalaciones && p.instalaciones.length),
+             p && p.instalaciones ? 'padrón local: ' + p.instalaciones.length + ' instalaciones'
+                                  : 'todavía no se bajó el padrón');
+    }
+
+    caja.textContent = lineas.join('\n') + '\n\nProbando el backend…';
+
+    if (!hayApi) {
+      caja.textContent = lineas.join('\n')
+        + '\n\nFalta pegar la URL /exec de la implementación\nde Apps Script en js/config.js.';
+      return;
+    }
+
+    fetch(CONFIG.API + '?accion=ping')
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        marcar(!!d.ok, 'el backend respondió (versión ' + (d.version || '?') + ')');
+        caja.textContent = lineas.join('\n');
+      })
+      .catch(function (e) {
+        marcar(false, 'el backend no respondió: ' + e.message);
+        lineas.push('');
+        lineas.push('Revisá que la implementación esté publicada');
+        lineas.push('con acceso «Cualquier persona».');
+        caja.textContent = lineas.join('\n');
+      });
   }
 
   function mostrarPrincipal() {
