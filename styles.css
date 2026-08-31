@@ -1,0 +1,276 @@
+/* ============================================================
+   Relevamiento de instalaciones
+   Pensado para leerse con sol de frente y operarse con una mano.
+   Sin fuentes web a proposito: sin señal no cargarian.
+   ============================================================ */
+
+:root {
+  --tinta:        #14181c;
+  --tinta-suave:  #5b656e;
+  --papel:        #ffffff;
+  --fondo:        #eceef1;
+  --linea:        #c9cfd6;
+  --linea-fina:   #e2e6ea;
+
+  /* Amarillo de obra en via publica. Es el color de la accion. */
+  --senal:        #f5c400;
+  --senal-oscuro: #c99f00;
+
+  /* Colores de lente. Reservados para estado, nunca decorativos. */
+  --verde:  #1e8e3e;
+  --ambar:  #e8a100;
+  --rojo:   #c5221f;
+
+  /* Familias, mismos valores que el catalogo */
+  --semaforo:     #e53935;
+  --punto_medida: #43a047;
+  --pmv:          #fb8c00;
+  --pov:          #26a69a;
+  --cctv:         #5e35b1;
+  --central_zona: #00838f;
+
+  --toque: 56px;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--fondo);
+  color: var(--tinta);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 17px;
+  line-height: 1.45;
+  -webkit-text-size-adjust: 100%;
+}
+
+body { display: flex; flex-direction: column; }
+
+button, input, select { font: inherit; color: inherit; }
+
+/* ---------------- barra superior ---------------- */
+
+.barra {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--tinta);
+  color: var(--papel);
+  padding-top: calc(10px + env(safe-area-inset-top));
+}
+
+.barra h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  flex: 1;
+}
+
+.barra .quien {
+  font-size: 14px;
+  color: #a8b2bb;
+  font-weight: 500;
+}
+
+/* Estado de sincronizacion. El punto cambia de color; el numero
+   solo aparece si hay algo esperando.                          */
+.estado {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid #39434c;
+  border-radius: 999px;
+  background: #1e242a;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  min-height: 34px;
+}
+
+.punto {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--verde);
+  flex: none;
+}
+.punto.trabajando { background: var(--ambar); animation: latir 1s ease-in-out infinite; }
+.punto.error      { background: var(--rojo); }
+.punto.sin-red    { background: var(--tinta-suave); }
+
+@keyframes latir { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .punto.trabajando { animation: none; } }
+
+/* ---------------- pestañas ---------------- */
+
+.pestanias {
+  display: flex;
+  background: var(--papel);
+  border-bottom: 1px solid var(--linea);
+  position: sticky;
+  top: 0;
+  z-index: 15;
+}
+
+.pestania {
+  flex: 1;
+  min-height: var(--toque);
+  border: 0;
+  background: none;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--tinta-suave);
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+}
+.pestania[aria-selected="true"] {
+  color: var(--tinta);
+  border-bottom-color: var(--senal);
+}
+.pestania:focus-visible { outline: 3px solid var(--senal); outline-offset: -3px; }
+
+/* ---------------- buscador ---------------- */
+
+.buscar {
+  padding: 12px 14px;
+  background: var(--papel);
+  border-bottom: 1px solid var(--linea);
+}
+
+.buscar input {
+  width: 100%;
+  min-height: var(--toque);
+  padding: 0 14px;
+  border: 2px solid var(--linea);
+  border-radius: 10px;
+  background: var(--papel);
+  font-size: 18px;
+}
+.buscar input:focus {
+  outline: none;
+  border-color: var(--tinta);
+}
+
+.pista {
+  margin: 8px 2px 0;
+  font-size: 14px;
+  color: var(--tinta-suave);
+}
+
+/* ---------------- lista de resultados ---------------- */
+
+main { flex: 1; overflow-y: auto; padding-bottom: 28px; }
+
+.lista { list-style: none; margin: 0; padding: 0; background: var(--papel); }
+
+.fila {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--toque);
+  padding: 13px 14px 13px 11px;
+  border: 0;
+  border-bottom: 1px solid var(--linea-fina);
+  /* El borde izquierdo codifica la familia. Es informacion. */
+  border-left: 4px solid var(--linea);
+  background: var(--papel);
+  text-align: left;
+  cursor: pointer;
+}
+.fila:active { background: #f5f7f9; }
+.fila:focus-visible { outline: 3px solid var(--senal); outline-offset: -3px; }
+
+.fila[data-familia="semaforo"]     { border-left-color: var(--semaforo); }
+.fila[data-familia="punto_medida"] { border-left-color: var(--punto_medida); }
+.fila[data-familia="pmv"]          { border-left-color: var(--pmv); }
+.fila[data-familia="pov"]          { border-left-color: var(--pov); }
+.fila[data-familia="cctv"]         { border-left-color: var(--cctv); }
+
+.inv {
+  flex: none;
+  min-width: 4.2em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.cruce { flex: 1; min-width: 0; }
+.cruce b { font-weight: 600; display: block; }
+.cruce span { font-size: 14px; color: var(--tinta-suave); }
+
+.dist {
+  flex: none;
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta-suave);
+}
+.dist.pegado { color: var(--verde); }
+
+/* ---------------- avisos y vacios ---------------- */
+
+.aviso {
+  margin: 14px;
+  padding: 14px;
+  border-left: 4px solid var(--ambar);
+  background: var(--papel);
+  font-size: 15px;
+}
+.aviso.malo { border-left-color: var(--rojo); }
+.aviso b { display: block; margin-bottom: 3px; }
+
+.vacio {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--tinta-suave);
+}
+.vacio p { margin: 0 0 16px; }
+
+/* ---------------- botones ---------------- */
+
+.boton {
+  min-height: var(--toque);
+  padding: 0 20px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--senal);
+  color: var(--tinta);
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.boton:active { background: var(--senal-oscuro); }
+.boton:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
+.boton.tenue {
+  background: var(--papel);
+  border: 2px solid var(--linea);
+  font-weight: 600;
+}
+.boton[disabled] { opacity: .45; cursor: default; }
+
+/* ---------------- alta de relevador ---------------- */
+
+.portada {
+  margin: auto;
+  padding: 32px 22px;
+  max-width: 30rem;
+  width: 100%;
+}
+.portada h2 { margin: 0 0 6px; font-size: 24px; letter-spacing: -0.02em; }
+.portada p  { margin: 0 0 24px; color: var(--tinta-suave); }
+.portada select { width: 100%; min-height: var(--toque); padding: 0 12px;
+                  border: 2px solid var(--linea); border-radius: 10px;
+                  background: var(--papel); margin-bottom: 14px; }
+.portada .boton { width: 100%; }
+
+@media (min-width: 700px) {
+  body { max-width: 46rem; margin: 0 auto; box-shadow: 0 0 0 1px var(--linea); }
+}
