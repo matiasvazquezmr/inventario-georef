@@ -18,16 +18,26 @@
   </button>
 </header>
 
+<div class="aviso malo" id="fatal" hidden></div>
+
 <!-- Alta del relevador -->
 <section class="portada" id="portada" hidden>
   <h2>¿Quién está relevando?</h2>
   <p>Tu nombre queda guardado en cada registro que cargues.</p>
   <select id="selectorRelevador" aria-label="Relevador"></select>
+  <input id="nombreManual" type="text" placeholder="O escribí tu nombre" hidden
+         autocomplete="off" aria-label="Nombre del relevador">
   <button class="boton" id="entrar" type="button">Empezar</button>
+
   <div class="aviso" id="avisoPortada" hidden>
     <b>No hay relevadores cargados</b>
-    Agregá los nombres en la hoja «relevadores» de la planilla y volvé a sincronizar.
+    Agregá los nombres en la hoja «relevadores» de la planilla y volvé a sincronizar,
+    o escribí tu nombre acá arriba para probar.
   </div>
+
+  <button class="boton tenue" id="revisar" type="button"
+          style="width:100%;margin-top:22px">Revisar configuración</button>
+  <pre id="diagnostico" hidden></pre>
 </section>
 
 <!-- Pantalla principal -->
