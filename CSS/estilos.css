@@ -269,7 +269,26 @@ main { flex: 1; overflow-y: auto; padding-bottom: 28px; }
 .portada select { width: 100%; min-height: var(--toque); padding: 0 12px;
                   border: 2px solid var(--linea); border-radius: 10px;
                   background: var(--papel); margin-bottom: 14px; }
+.portada input[type=text] { width: 100%; min-height: var(--toque); padding: 0 12px;
+                  border: 2px solid var(--linea); border-radius: 10px;
+                  background: var(--papel); margin-bottom: 14px; font-size: 18px; }
 .portada .boton { width: 100%; }
+
+#fatal { display: none; white-space: pre-wrap; font-size: 14px;
+         font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+#fatal:not([hidden]) { display: block; }
+
+#diagnostico {
+  margin: 14px 0 0;
+  padding: 14px;
+  background: var(--papel);
+  border-left: 4px solid var(--linea);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 @media (min-width: 700px) {
   body { max-width: 46rem; margin: 0 auto; box-shadow: 0 0 0 1px var(--linea); }
