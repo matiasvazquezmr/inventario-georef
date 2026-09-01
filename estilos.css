@@ -378,3 +378,51 @@ ul.relevados span { font-size: 14px; color: var(--tinta-suave); }
 .pin.equipo { background: var(--senal); width: 26px; height: 26px; }
 .pin.ref    { background: var(--tinta-suave); width: 13px; height: 13px;
               opacity: .85; margin: 6px; }
+
+/* ---------------- formularios dinámicos ---------------- */
+
+.campo { margin-bottom: 18px; }
+.campo:last-child { margin-bottom: 0; }
+.campo[hidden] { display: none; }
+
+.campo label {
+  display: block; margin-bottom: 6px;
+  font-size: 15px; font-weight: 600;
+}
+.campo small {
+  display: block; margin-top: 5px;
+  font-size: 13px; color: var(--tinta-suave);
+}
+
+.campo input[type=text], .campo input[type=number], .campo input[type=date],
+.campo select, .campo textarea, .sugerido input {
+  width: 100%; min-height: var(--toque); padding: 0 12px;
+  border: 2px solid var(--linea); border-radius: 10px;
+  background: var(--papel); font-size: 17px;
+}
+.campo textarea { padding: 10px 12px; min-height: 88px; line-height: 1.45; }
+.campo input:focus, .campo select:focus, .campo textarea:focus {
+  outline: none; border-color: var(--tinta);
+}
+.campo select:disabled { background: var(--fondo); color: var(--tinta-suave); }
+
+/* Sí / No como dos botones: se toca mejor que una casilla */
+.siono { display: flex; gap: 10px; }
+.siono button {
+  flex: 1; min-height: var(--toque);
+  border: 2px solid var(--linea); border-radius: 10px;
+  background: var(--papel); font-size: 17px; font-weight: 600;
+  cursor: pointer;
+}
+.siono button.elegido {
+  border-color: var(--tinta); background: var(--tinta); color: var(--papel);
+}
+
+/* Multiselección con casillas grandes */
+.multi { display: flex; flex-direction: column; gap: 2px; }
+.casilla {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 50px; padding: 4px 2px;
+  font-size: 16px; font-weight: 400; cursor: pointer;
+}
+.casilla input { width: 24px; height: 24px; flex: none; accent-color: var(--tinta); }
