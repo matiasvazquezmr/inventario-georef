@@ -276,14 +276,20 @@ var Ficha = (function () {
     };
     App.irA('captura');
     pintarEsperaGPS();
+    GPS.iniciar();
     GPS.on(alLeerGPS);
+    alLeerGPS(GPS.posicion(), null);
   }
 
   function iniciarCaptura(inst, tipo) {
     enCaptura = { inst: inst, tipo: tipo, punto: null, original: null };
     App.irA('captura');
     pintarEsperaGPS();
+    GPS.iniciar();
     GPS.on(alLeerGPS);
+    /* Si ya hay una lectura, se muestra en el acto en vez de
+       dejar el anillo en "buscando señal" hasta la siguiente. */
+    alLeerGPS(GPS.posicion(), null);
   }
 
   function pintarEsperaGPS() {
@@ -314,11 +320,17 @@ var Ficha = (function () {
     if (!num || !anillo) return;
 
     if (err || !l) {
-      anillo.className = 'anillo mala';
+      anillo.className = 'anillo' + (err ? ' mala' : '');
       num.textContent = '—';
-      txt.textContent = err && err.code === 1
-        ? 'Permitile a la app usar la ubicación'
-        : 'Sin señal de GPS';
+      if (err) {
+        txt.textContent = err.code === 1
+          ? 'Permitile a la app usar la ubicación'
+          : 'Sin señal de GPS';
+      } else {
+        /* Todavía no llegó ninguna lectura. No es un error:
+           el GPS tarda entre 20 y 40 segundos en frío.      */
+        txt.textContent = 'Buscando señal, puede tardar medio minuto';
+      }
       return;
     }
 
@@ -362,6 +374,7 @@ var Ficha = (function () {
       Mapa.destruir();
       pintarEsperaGPS();
       GPS.on(alLeerGPS);
+      alLeerGPS(GPS.posicion(), null);
     });
     document.getElementById('btnGuardar').addEventListener('click', pasarADatos);
   }
@@ -460,7 +473,7 @@ var Ficha = (function () {
       enCaptura = null;
       App.avisarGuardado((def.nombre || reg.tipo) + ' guardada');
       if (cb) cb(reg);
-      App.irA('red', true);
+      App.volverARed();
       return;
     }
 

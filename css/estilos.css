@@ -441,3 +441,8 @@ ul.relevados li.tocable:active { background: #f5f7f9; }
 ul.relevados span.alerta { color: var(--rojo); font-weight: 600; }
 
 .fila[data-familia="civil"] { border-left-color: #6d4c41; }
+
+.separador {
+  margin: 0 0 14px; text-align: center;
+  font-size: 14px; color: var(--tinta-suave);
+}

@@ -132,6 +132,10 @@ var Red = (function () {
 
   function abrirLista() {
     var c = document.getElementById('vistaRed');
+    if (!c) return;
+    /* Hace falta acá también: desde esta solapa se puede entrar
+       directo a capturar sin haber pasado por ninguna ficha.   */
+    GPS.iniciar();
     var pos = GPS.posicion();
     var lista = camaras();
 

@@ -89,8 +89,10 @@ var App = (function () {
         + '\n\nSubí la versión nueva de index.html.');
     }
 
-    if (Almacen.pref('relevador')) mostrarPrincipal();
-    else mostrarPortada();
+    /* Siempre se pregunta quién releva. La cuadrilla comparte
+       equipos y el nombre viaja en cada registro; heredarlo de la
+       sesión anterior es la forma más fácil de atribuir mal.    */
+    mostrarPortada();
   }
 
   /* ------------------- navegación -------------------
@@ -104,7 +106,6 @@ var App = (function () {
     captura:   { el: 'vistaCaptura', titulo: 'Capturar' },
     datos:     { el: 'vistaDatos',   titulo: 'Datos del elemento' },
     comp:      { el: 'vistaComp',    titulo: 'Componentes' },
-    red:       { el: 'vistaRed',     titulo: 'Red de ductos' },
     camara:    { el: 'vistaCamara',  titulo: 'Cámara' },
     conectar:  { el: 'vistaConectar',titulo: 'Conectar' },
     tramoNuevo:{ el: 'vistaTramoNuevo', titulo: 'Nuevo ducto' },
@@ -129,7 +130,9 @@ var App = (function () {
     });
     document.getElementById('titulo').textContent = VISTAS[v].titulo;
     document.getElementById('atras').hidden = (v === 'principal');
-    if (v === 'principal') { Ficha.salir(); Red.salir(); GPS.detener(); }
+    /* El GPS queda encendido mientras la app está en uso: apagarlo
+       obligaba a esperar el arranque en frío en cada captura. */
+    if (v === 'principal') { Ficha.salir(); Red.salir(); pintarSolapa(); }
     window.scrollTo(0, 0);
   }
 
@@ -144,7 +147,6 @@ var App = (function () {
     /* Al volver a la ficha se vuelve a dibujar: puede haber
        cambiado el avance por lo que se acaba de cargar.      */
     if (v === 'ficha' && Ficha.actual()) Ficha.abrir(Ficha.actual());
-    if (v === 'red') Red.abrirLista();
     if (v === 'camara') Red.refrescar();
     pintarVista(v);
   }
@@ -167,44 +169,58 @@ var App = (function () {
     poblarRelevadores();
   }
 
+  /* La lista sale de la hoja 'relevadores', no de quienes usaron
+     la app antes: si no, con el tiempo sería un listado infinito.
+     El campo manual está siempre disponible.                    */
   function poblarRelevadores() {
     var p = Almacen.padron();
     var lista = (p && p.relevadores) ? p.relevadores.filter(function (r) {
-      return r.activo !== false && r.activo !== 'FALSE';
+      return r.nombre && r.activo !== false && r.activo !== 'FALSE';
     }) : [];
 
     var manual = document.getElementById('nombreManual');
+    var sep = document.getElementById('sepPortada');
     var aviso = document.getElementById('avisoPortada');
+    var ultimo = Almacen.pref('relevador');
 
     el.selector.innerHTML = '';
+    manual.value = '';
 
     if (!lista.length) {
-      /* Sin padrón no se puede quedar en un callejón sin salida:
-         se escribe el nombre a mano y se sigue.                  */
       el.selector.hidden = true;
-      manual.hidden = false;
+      sep.hidden = true;
       aviso.hidden = false;
-      document.getElementById('entrar').disabled = false;
       return;
     }
 
     el.selector.hidden = false;
-    manual.hidden = true;
+    sep.hidden = false;
     aviso.hidden = true;
-    document.getElementById('entrar').disabled = false;
+
+    var vacio = document.createElement('option');
+    vacio.value = '';
+    vacio.textContent = 'Elegí tu nombre';
+    el.selector.appendChild(vacio);
 
     lista.forEach(function (r) {
       var o = document.createElement('option');
       o.value = r.nombre;
       o.textContent = r.nombre + (r.zona ? '  ·  ' + r.zona : '');
+      if (r.nombre === ultimo) o.selected = true;
       el.selector.appendChild(o);
     });
   }
 
   function entrar() {
     var manual = document.getElementById('nombreManual');
-    var n = manual.hidden ? el.selector.value : manual.value.trim();
-    if (!n) { manual.focus(); return; }
+    /* Lo escrito a mano gana: si alguien completó el campo, es
+       porque no está en la lista.                              */
+    var n = manual.value.trim() || el.selector.value;
+    if (!n) {
+      avisarGuardado('Elegí o escribí tu nombre');
+      manual.focus();
+      return;
+    }
     Almacen.pref('relevador', n);
     mostrarPrincipal();
   }
@@ -280,25 +296,29 @@ var App = (function () {
 
   /* ------------------- ubicación ------------------- */
 
+  /* Antes había DOS rastreadores en paralelo, uno acá y otro en
+     gps.js. Eso gastaba batería de más y, peor, dejaba la pantalla
+     de captura esperando una lectura que nunca llegaba cuando se
+     entraba desde la pestaña Red. Ahora hay uno solo.           */
   function seguirPosicion() {
     if (!navigator.geolocation) {
       el.pista.textContent = 'Este dispositivo no tiene GPS disponible.';
       return;
     }
-    /* Se deja prendido: cuando el relevador llegue a la esquina,
-       la lectura ya está estabilizada.                          */
-    watchId = navigator.geolocation.watchPosition(function (p) {
-      posicion = { lat: p.coords.latitude, lon: p.coords.longitude,
-                   acc: p.coords.accuracy };
-      if (solapa === 'cerca') render();
-    }, function (err) {
-      posicion = null;
-      if (solapa === 'cerca') {
-        pintarVacio('Sin señal de GPS',
-          err.code === 1 ? 'Permitile a la app usar la ubicación desde los ajustes del navegador.'
-                         : 'Salí a cielo abierto y esperá unos segundos.');
+    GPS.on(function (l, err) {
+      if (err) {
+        posicion = null;
+        if (solapa === 'cerca') {
+          pintarVacio('Sin señal de GPS',
+            err.code === 1 ? 'Permitile a la app usar la ubicación desde los ajustes del navegador.'
+                           : 'Salí a cielo abierto y esperá unos segundos.');
+        }
+        return;
       }
-    }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
+      posicion = { lat: l.lat, lon: l.lon, acc: l.acc };
+      if (solapa === 'cerca') render();
+    });
+    GPS.iniciar();
   }
 
   /* ------------------- solapas ------------------- */
@@ -308,10 +328,28 @@ var App = (function () {
     document.querySelectorAll('.pestania').forEach(function (b) {
       b.setAttribute('aria-selected', b.dataset.solapa === s ? 'true' : 'false');
     });
-    document.getElementById('cajaBuscar').hidden = (s !== 'buscar');
+    pintarSolapa();
     if (s === 'buscar') el.entrada.focus();
-    if (s === 'red') { Red.abrirLista(); pintarVista('red'); return; }
-    render();
+  }
+
+  /* Dibuja el contenido de la solapa activa dentro de la pantalla
+     principal. Las tres son solapas, no pantallas distintas, así
+     que el botón atrás nunca tiene que llevarte fuera de acá.   */
+  function pintarSolapa() {
+    document.getElementById('cajaBuscar').hidden = (solapa !== 'buscar');
+    document.getElementById('panelBuscador').hidden = (solapa === 'red');
+    document.getElementById('vistaRed').hidden = (solapa !== 'red');
+    if (solapa === 'red') Red.abrirLista();
+    else render();
+  }
+
+  /* Vuelve a la pantalla principal con la solapa de red activa */
+  function volverARed() {
+    solapa = 'red';
+    document.querySelectorAll('.pestania').forEach(function (b) {
+      b.setAttribute('aria-selected', b.dataset.solapa === 'red' ? 'true' : 'false');
+    });
+    irA('principal', true);
   }
 
   /* ------------------- render ------------------- */
@@ -459,7 +497,8 @@ var App = (function () {
     };
   }
 
-  return { iniciar: iniciar, irA: irA, avisarGuardado: avisarGuardado };
+  return { iniciar: iniciar, irA: irA, avisarGuardado: avisarGuardado,
+           volverARed: volverARed };
 })();
 
 document.addEventListener('DOMContentLoaded', App.iniciar);

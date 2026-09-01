@@ -28,14 +28,15 @@
   <h2>¿Quién está relevando?</h2>
   <p>Tu nombre queda guardado en cada registro que cargues.</p>
   <select id="selectorRelevador" aria-label="Relevador"></select>
-  <input id="nombreManual" type="text" placeholder="O escribí tu nombre" hidden
+  <p class="separador" id="sepPortada">o</p>
+  <input id="nombreManual" type="text" placeholder="Escribí tu nombre"
          autocomplete="off" aria-label="Nombre del relevador">
   <button class="boton" id="entrar" type="button">Empezar</button>
 
   <div class="aviso" id="avisoPortada" hidden>
     <b>No hay relevadores cargados</b>
-    Agregá los nombres en la hoja «relevadores» de la planilla y volvé a sincronizar,
-    o escribí tu nombre acá arriba para probar.
+    Podés escribir tu nombre igual. Para que aparezca en la lista, agregalo
+    en la hoja «relevadores» de la planilla.
   </div>
 
   <button class="boton tenue" id="revisar" type="button"
@@ -59,10 +60,12 @@
            placeholder="Número de inventario o calles">
   </div>
 
-  <main>
+  <main id="panelBuscador">
     <p class="pista" id="pista" style="padding:0 14px"></p>
     <ul class="lista" id="lista"></ul>
   </main>
+
+  <main id="vistaRed" hidden></main>
 </div>
 
 <!-- Ficha de la instalación -->
@@ -81,7 +84,6 @@
 <main id="vistaComp" hidden></main>
 
 <!-- Red de ductos -->
-<main id="vistaRed" hidden></main>
 <main id="vistaCamara" hidden></main>
 <main id="vistaConectar" hidden></main>
 <main id="vistaTramoNuevo" hidden></main>
