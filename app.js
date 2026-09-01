@@ -61,9 +61,67 @@ var App = (function () {
     document.getElementById('sincronizar').addEventListener('click', sincronizar);
     document.getElementById('entrar').addEventListener('click', entrar);
     document.getElementById('revisar').addEventListener('click', diagnosticar);
+    document.getElementById('atras').addEventListener('click', volver);
+    window.addEventListener('popstate', retroceder);
 
     if (Almacen.pref('relevador')) mostrarPrincipal();
     else mostrarPortada();
+  }
+
+  /* ------------------- navegación -------------------
+     El botón atrás del celular tiene que funcionar. Si no,
+     el operario sale de la app sin querer y pierde el hilo. */
+
+  var VISTAS = {
+    principal: { el: 'principal',    titulo: 'Relevamiento' },
+    ficha:     { el: 'vistaFicha',   titulo: 'Instalación' },
+    tipo:      { el: 'vistaTipo',    titulo: 'Nuevo elemento' },
+    captura:   { el: 'vistaCaptura', titulo: 'Capturar' }
+  };
+  var pila = ['principal'];
+
+  function irA(v, sinHistorial) {
+    if (!VISTAS[v]) return;
+    if (!sinHistorial) {
+      pila.push(v);
+      try { history.pushState({ vista: v }, '', '#' + v); } catch (e) {}
+    }
+    pintarVista(v);
+  }
+
+  function pintarVista(v) {
+    Object.keys(VISTAS).forEach(function (k) {
+      var n = document.getElementById(VISTAS[k].el);
+      if (n) n.hidden = (k !== v);
+    });
+    document.getElementById('titulo').textContent = VISTAS[v].titulo;
+    document.getElementById('atras').hidden = (v === 'principal');
+    if (v === 'principal') { Ficha.salir(); GPS.detener(); }
+    window.scrollTo(0, 0);
+  }
+
+  function volver() {
+    if (pila.length <= 1) return;
+    try { history.back(); } catch (e) { retroceder(); }
+  }
+
+  function retroceder() {
+    pila.pop();
+    var v = pila[pila.length - 1] || 'principal';
+    /* Al volver a la ficha se vuelve a dibujar: puede haber
+       cambiado el avance por lo que se acaba de cargar.      */
+    if (v === 'ficha' && Ficha.actual()) Ficha.abrir(Ficha.actual());
+    pintarVista(v);
+  }
+
+  /* Aviso breve de que algo se guardó */
+  var timerBrindis = null;
+  function avisarGuardado(msg) {
+    var b = document.getElementById('brindis');
+    b.textContent = msg;
+    b.hidden = false;
+    clearTimeout(timerBrindis);
+    timerBrindis = setTimeout(function () { b.hidden = true; }, 2600);
   }
 
   /* ------------------- alta del relevador ------------------- */
@@ -321,13 +379,11 @@ var App = (function () {
     el.lista.appendChild(d);
   }
 
-  /* La ficha llega en el módulo 2. Por ahora deja ver que el
-     buscador encontró lo correcto.                            */
   function abrirFicha(r) {
-    alert(r.inv + '\n' + (r.calle_1 || '') + ' y ' + (r.calle_2 || '')
-        + '\n' + (NOMBRE_FAMILIA[r.familia] || r.familia)
-        + (r.zona ? '\n' + r.zona : '')
-        + (r.dist_m !== null ? '\n\nA ' + r.dist_m + ' m tuyo' : ''));
+    var inst = r.datos || Buscador.porInventario(r.inv);
+    if (!inst) return;
+    Ficha.abrir(inst);
+    irA('ficha');
   }
 
   /* ------------------- sincronización ------------------- */
@@ -367,7 +423,7 @@ var App = (function () {
     };
   }
 
-  return { iniciar: iniciar };
+  return { iniciar: iniciar, irA: irA, avisarGuardado: avisarGuardado };
 })();
 
 document.addEventListener('DOMContentLoaded', App.iniciar);
