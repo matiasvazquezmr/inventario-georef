@@ -337,7 +337,7 @@ var Ficha = (function () {
       + '<p class="pista" id="infoPunto"></p>'
       + '<div class="bloque acciones">'
       +   '<button class="boton tenue" id="btnVolverGPS" type="button">Volver a medir</button>'
-      +   '<button class="boton" id="btnGuardar" type="button">Guardar</button>'
+      +   '<button class="boton" id="btnGuardar" type="button">Continuar</button>'
       + '</div>';
 
     Mapa.crear('mapa', { lat: e.punto.lat, lon: e.punto.lon, acc: e.punto.acc },
@@ -350,7 +350,50 @@ var Ficha = (function () {
       pintarEsperaGPS();
       GPS.on(alLeerGPS);
     });
-    document.getElementById('btnGuardar').addEventListener('click', guardar);
+    document.getElementById('btnGuardar').addEventListener('click', pasarADatos);
+  }
+
+  /* ------------------- datos del elemento ------------------- */
+
+  function pasarADatos() {
+    var e = enCaptura;
+    /* La coordenada se congela acá, antes de destruir el mapa */
+    var fin = Mapa.posicionPin() || { lat: e.punto.lat, lon: e.punto.lon };
+    e.final = fin;
+    e.movido = Mapa.desplazamiento(e.original);
+    Mapa.destruir();
+    App.irA('datos');
+    pintarDatos();
+  }
+
+  function pintarDatos() {
+    var e = enCaptura;
+    var def = CATALOGO.elementos[e.tipo];
+    var c = document.getElementById('vistaDatos');
+
+    c.innerHTML = ''
+      + '<div class="bloque">'
+      +   '<h2>' + (def.nombre || e.tipo) + '</h2>'
+      +   '<p class="sub" id="resumenPunto"></p>'
+      + '</div>'
+      + '<div class="bloque" id="formulario"></div>'
+      + '<div class="bloque acciones">'
+      +   '<button class="boton tenue" id="btnVolverMapa" type="button">Volver al mapa</button>'
+      +   '<button class="boton" id="btnGuardarEl" type="button">Guardar</button>'
+      + '</div>';
+
+    document.getElementById('resumenPunto').textContent =
+      'Precisión ' + Math.round(e.punto.acc) + ' m'
+      + (e.movido >= 1 ? '  ·  corregido ' + Math.round(e.movido) + ' m a mano' : '');
+
+    Formulario.instalacionActual = e.inst.inv;
+    e.form = Formulario.crear(document.getElementById('formulario'), def, { modo: 'calle' });
+
+    document.getElementById('btnVolverMapa').addEventListener('click', function () {
+      App.irA('captura', true);
+      pintarAjuste();
+    });
+    document.getElementById('btnGuardarEl').addEventListener('click', guardar);
   }
 
   function actualizarInfo() {
@@ -367,21 +410,24 @@ var Ficha = (function () {
 
   function guardar() {
     var e = enCaptura;
-    var fin = Mapa.posicionPin() || { lat: e.punto.lat, lon: e.punto.lon };
-    var mov = Mapa.desplazamiento(e.original);
+    var faltan = e.form.faltantes();
+    if (faltan.length) {
+      App.avisarGuardado('Falta completar: ' + faltan.join(', '));
+      return;
+    }
 
     var reg = {
       id: Almacen.nuevoId('el'),
       tipo: e.tipo,
       familia: e.inst.familia,
       inv: e.inst.inv,
-      lat: redondear(fin.lat),
-      lon: redondear(fin.lon),
+      lat: redondear(e.final.lat),
+      lon: redondear(e.final.lon),
       lat_gps: redondear(e.original.lat),
       lon_gps: redondear(e.original.lon),
       accuracy_m: Math.round(e.punto.acc * 10) / 10,
-      ajustado: mov >= 1,
-      atributos_json: '{}',
+      ajustado: e.movido >= 1,
+      atributos_json: JSON.stringify(e.form.valores()),
       fotos: '',
       relevador: Almacen.pref('relevador') || '',
       fecha_alta: new Date().toISOString(),
@@ -389,13 +435,138 @@ var Ficha = (function () {
     };
 
     Almacen.encolar('elementos', reg);
-    Mapa.destruir();
     Sync.subirPendientes();
 
+    var def = CATALOGO.elementos[e.tipo];
+    var inst = e.inst;
+
+    /* Si el elemento tiene componentes, se sigue en cadena: el
+       operario está parado ahí mirando la columna, es el momento
+       de contar los cuerpos, no después desde la oficina.       */
+    if (def.componentes && def.componentes.length) {
+      enCaptura = null;
+      abrirComponentes(inst, reg, def.componentes);
+      return;
+    }
+
     enCaptura = null;
-    abrir(e.inst);
-    App.irA('ficha');
-    App.avisarGuardado((CATALOGO.elementos[reg.tipo].nombre || reg.tipo) + ' guardado');
+    abrir(inst);
+    App.irA('ficha', true);
+    App.avisarGuardado((def.nombre || reg.tipo) + ' guardado');
+  }
+
+  /* ------------------- componentes en cadena ------------------- */
+
+  var enComponentes = null;
+
+  function abrirComponentes(inst, elemento, tipos) {
+    enComponentes = { inst: inst, elemento: elemento, tipos: tipos, form: null,
+                      tipoActual: tipos[0] };
+    App.irA('comp');
+    pintarComponentes();
+  }
+
+  function pintarComponentes() {
+    var s = enComponentes;
+    var padre = CATALOGO.elementos[s.elemento.tipo];
+    var c = document.getElementById('vistaComp');
+    var puestos = Almacen.relevados().componentes.filter(function (k) {
+      return k.id_elemento === s.elemento.id && k.activo !== false;
+    });
+
+    var html = ''
+      + '<div class="bloque">'
+      +   '<h2>¿Qué tiene esta ' + (padre.nombre || '').toLowerCase() + '?</h2>'
+      +   '<p class="sub">Cargá uno por uno. Cuando termines, tocá Listo.</p>'
+      + '</div>';
+
+    if (puestos.length) {
+      html += '<div class="bloque"><h3>Cargados</h3><ul class="relevados">';
+      puestos.forEach(function (k) {
+        var d = CATALOGO.componentes[k.tipo];
+        var a = {};
+        try { a = JSON.parse(k.atributos_json || '{}'); } catch (x) {}
+        var et = a.tipo || a.subtipo || '';
+        if (et && d && d.campos) {
+          var cd = d.campos.filter(function (x) { return x.id === 'tipo'; })[0];
+          if (cd) {
+            var op = Formulario._opcionesDe(cd).filter(function (o) {
+              return String(o.id) === String(et);
+            })[0];
+            if (op) et = op.label;
+          }
+        }
+        html += '<li><b>' + ((d && d.nombre) || k.tipo) + '</b><span>' + et + '</span></li>';
+      });
+      html += '</ul></div>';
+    }
+
+    /* Selector de qué componente cargar, si hay más de uno */
+    if (s.tipos.length > 1) {
+      html += '<div class="bloque"><div class="campo"><label for="tipoComp">Tipo</label>'
+            + '<select id="tipoComp">';
+      s.tipos.forEach(function (t) {
+        var d = CATALOGO.componentes[t];
+        html += '<option value="' + t + '"' + (t === s.tipoActual ? ' selected' : '') + '>'
+              + ((d && d.nombre) || t) + '</option>';
+      });
+      html += '</select></div></div>';
+    }
+
+    html += '<div class="bloque" id="formComp"></div>'
+          + '<div class="bloque acciones">'
+          +   '<button class="boton tenue" id="btnListo" type="button">Listo</button>'
+          +   '<button class="boton" id="btnOtro" type="button">Agregar</button>'
+          + '</div>';
+
+    c.innerHTML = html;
+
+    dibujarFormComponente();
+
+    var sel = document.getElementById('tipoComp');
+    if (sel) sel.addEventListener('change', function () {
+      enComponentes.tipoActual = sel.value;
+      dibujarFormComponente();
+    });
+
+    document.getElementById('btnOtro').addEventListener('click', agregarComponente);
+    document.getElementById('btnListo').addEventListener('click', function () {
+      var inst = enComponentes.inst;
+      enComponentes = null;
+      abrir(inst);
+      App.irA('ficha', true);
+    });
+  }
+
+  function dibujarFormComponente() {
+    var s = enComponentes;
+    var def = CATALOGO.componentes[s.tipoActual];
+    Formulario.instalacionActual = s.inst.inv;
+    s.form = Formulario.crear(document.getElementById('formComp'), def, { modo: 'calle' });
+  }
+
+  function agregarComponente() {
+    var s = enComponentes;
+    var faltan = s.form.faltantes();
+    if (faltan.length) {
+      App.avisarGuardado('Falta completar: ' + faltan.join(', '));
+      return;
+    }
+    var reg = {
+      id: Almacen.nuevoId('cp'),
+      id_elemento: s.elemento.id,
+      tipo: s.tipoActual,
+      atributos_json: JSON.stringify(s.form.valores()),
+      relevador: Almacen.pref('relevador') || '',
+      fecha_alta: new Date().toISOString(),
+      activo: true
+    };
+    Almacen.encolar('componentes', reg);
+    Sync.subirPendientes();
+    /* Se redibuja con el formulario limpio, listo para el
+       siguiente. Sin volver a ningún menú.                 */
+    pintarComponentes();
+    App.avisarGuardado('Cargado');
   }
 
   function redondear(n) { return Math.round(n * 1e7) / 1e7; }
