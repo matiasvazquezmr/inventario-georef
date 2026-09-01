@@ -6,6 +6,11 @@
 
 var App = (function () {
 
+  /* Subir esto cada vez que cambia la estructura del HTML.
+     El diagnóstico lo muestra, así se detecta al instante si
+     los archivos quedaron desincronizados.                  */
+  var VERSION = '3.1';
+
   var el = {};
   var posicion = null;
   var watchId = null;
@@ -234,7 +239,11 @@ var App = (function () {
 
     function marcar(ok, texto) { lineas.push((ok ? '✓  ' : '✗  ') + texto); }
 
+    lineas.push('app.js v' + VERSION);
+    lineas.push('');
+
     marcar(typeof POSGAR !== 'undefined', 'js/posgar.js cargado');
+    marcar(typeof Red !== 'undefined', 'js/red.js cargado');
     marcar(typeof CONFIG !== 'undefined', 'js/config.js cargado');
     marcar(typeof Almacen !== 'undefined', 'js/almacen.js cargado');
     marcar(typeof Buscador !== 'undefined', 'js/buscador.js cargado');
@@ -242,6 +251,19 @@ var App = (function () {
 
     var hayApi = typeof CONFIG !== 'undefined' && !!CONFIG.API;
     marcar(hayApi, hayApi ? 'CONFIG.API configurada' : 'CONFIG.API está vacía en js/config.js');
+
+    /* La comprobación que importa: el HTML tiene que tener la
+       estructura que este app.js espera.                     */
+    var panel = document.getElementById('panelBuscador');
+    var red = document.getElementById('vistaRed');
+    marcar(!!panel, 'index.html tiene #panelBuscador');
+    marcar(!!red, 'index.html tiene #vistaRed');
+    if (panel && red) {
+      var dentro = document.getElementById('principal')
+                && document.getElementById('principal').contains(red);
+      marcar(dentro, dentro ? 'la lista de red está dentro de la pantalla principal'
+                            : 'index.html VIEJO: #vistaRed está fuera de #principal');
+    }
 
     marcar(location.protocol === 'https:', 'servido por HTTPS (el GPS lo exige)');
     marcar(!!navigator.geolocation, 'el navegador expone GPS');
@@ -336,9 +358,20 @@ var App = (function () {
      principal. Las tres son solapas, no pantallas distintas, así
      que el botón atrás nunca tiene que llevarte fuera de acá.   */
   function pintarSolapa() {
-    document.getElementById('cajaBuscar').hidden = (solapa !== 'buscar');
-    document.getElementById('panelBuscador').hidden = (solapa === 'red');
-    document.getElementById('vistaRed').hidden = (solapa !== 'red');
+    var caja = document.getElementById('cajaBuscar');
+    var panel = document.getElementById('panelBuscador');
+    var red = document.getElementById('vistaRed');
+
+    if (!panel || !red) {
+      mostrarFatal('El index.html no coincide con app.js v' + VERSION + '.\n'
+        + 'Falta ' + (!panel ? '#panelBuscador' : '#vistaRed') + '.\n\n'
+        + 'Subí la versión nueva de index.html.');
+      return;
+    }
+    if (caja) caja.hidden = (solapa !== 'buscar');
+    panel.hidden = (solapa === 'red');
+    red.hidden = (solapa !== 'red');
+
     if (solapa === 'red') Red.abrirLista();
     else render();
   }
