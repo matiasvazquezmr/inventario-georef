@@ -1,107 +1,98 @@
-# Relevamiento georreferenciado de infraestructura semafórica
+# Inventario georreferenciado de instalaciones
 
-App web de campo para relevar con GPS de celular la ubicación del equipamiento
-semafórico y de fibra óptica, con sincronización a Google Sheets y consumo
-directo desde QGIS.
+App de campo para relevar con GPS la ubicación del equipamiento semafórico y de
+fibra óptica de Rosario. Sin dependencias externas ni compilación: se sube a
+GitHub Pages tal cual está.
 
-## Estructura del proyecto
+Datos en Google Sheets, backend en Apps Script, front en JavaScript plano.
+
+## Estructura
 
 ```
-/
-├── index.html          carga de campo (celular)
-├── visor.html          consulta de solo lectura (equipo)
-├── css/estilos.css
-├── js/
-│   ├── catalogo.js     ← definición de tipos y campos (editar acá)
-│   ├── gps.js          captura de punto, promediado, tracking de recorrido
-│   ├── formularios.js  generador dinámico desde el catálogo
-│   ├── sync.js         cola offline + reintentos
-│   ├── mapa.js         Leaflet, ajuste manual del pin
-│   └── app.js
-└── backend/Codigo.gs   Apps Script
+index.html            única página, la app entera
+.nojekyll             GitHub Pages sirve los archivos sin procesarlos
+
+css/
+  estilos.css
+
+js/                   los módulos propios, en orden de dependencia
+  posgar.js           POSGAR 94 faja 5 <-> WGS84, y distancias
+  config.js           URL del backend, capas de mapa, umbrales
+  catalogo.js         qué se releva y qué campos pide cada cosa
+  almacen.js          padrón local, cola de pendientes, preferencias
+  buscador.js         búsqueda por inventario, por calles y por cercanía
+  gps.js              seguimiento, promediado y calidad de la lectura
+  formulario.js       genera los formularios leyendo el catálogo
+  mapa.js             Leaflet, capas y pin arrastrable
+  sync.js             descarga del padrón, cola de reintentos, cambios
+  ficha.js            ficha de instalación, captura y componentes
+  app.js              navegación, buscador y estado
+
+vendor/
+  leaflet.js          1.9.4 sin modificar
+  leaflet.css
+
+apps-script/          copia versionada, NO se publica
+  posgar.gs
+  importador.gs
+  backend.gs
 ```
 
-## Hojas de la planilla
+## Orden de carga
 
-**esquinas** (maestro, se importa una vez desde QGIS)
+Los scripts se cargan con etiquetas `<script>` comunes, sin módulos ES ni
+empaquetador, así que **el orden importa**. Cada uno deja su objeto global y
+los siguientes lo usan:
 
-| nro_inventario | calle_1 | calle_2 | lat | lon | zona |
-|---|---|---|---|---|---|
-
-**elementos** (geometría: punto)
-
-| campo | descripción |
-|---|---|
-| `id` | generado en el celular, permite reenvío sin duplicar |
-| `nro_inventario` | vacío si el elemento no pertenece a una esquina |
-| `tipo` | clave del catálogo |
-| `lat` / `lon` | coordenada final (corregida si hubo ajuste manual) |
-| `lat_gps` / `lon_gps` | coordenada cruda del GPS, para auditar calidad |
-| `accuracy_m` | precisión informada por el dispositivo |
-| `ajustado` | true si se movió el pin sobre la imagen satelital |
-| `atributos_json` | campos propios del tipo |
-| `fotos` | JSON con los file_id de Drive |
-| `activo` | baja lógica, nunca se borra una fila |
-
-**tramos** (geometría: línea, recorrido grabado)
-
-`geometria_json` guarda el array `[[lat,lon],...]` ya simplificado.
-Un tramo de 300 m con tolerancia de 2 m queda en unos 40 puntos, muy por
-debajo del límite de la celda.
-
-## API
-
-Todo contra la URL `/exec` de la implementación.
-
-**GET**
-
-| parámetro | resultado |
-|---|---|
-| `?accion=ping` | verificar conexión |
-| `?accion=todo` | esquinas + elementos + tramos, para cargar el caché inicial |
-| `?accion=geojson` | FeatureCollection con todo |
-| `?accion=geojson&tipo=columna` | filtrado por tipo |
-
-**POST** (con `Content-Type: text/plain;charset=utf-8` para evitar el preflight
-CORS, que Apps Script no responde)
-
-```json
-{ "accion": "guardar_elementos", "data": [ { "id": "...", "tipo": "columna", ... } ] }
-{ "accion": "guardar_tramos",    "data": [ { ... } ] }
-{ "accion": "subir_foto",        "id_elemento": "...", "seq": 1, "base64": "..." }
-{ "accion": "baja",              "hoja": "elementos", "id": "..." }
+```
+leaflet -> posgar -> config -> catalogo -> almacen -> buscador
+        -> gps -> formulario -> mapa -> sync -> ficha -> app
 ```
 
-El guardado es idempotente: si el `id` ya existe se actualiza en lugar de
-insertar. La cola de reintentos puede reenviar el mismo lote las veces que
-haga falta.
+`app.js` va último siempre: es el que arranca todo cuando el DOM está listo.
 
-## Conexión con QGIS
+## Puesta en marcha
 
-**Opción A, capa viva por GeoJSON**
+1. En la planilla del inventario, Extensiones > Apps Script. Crear tres
+   archivos con el contenido de `apps-script/`, en ese orden.
+2. Ejecutar `prepararHojas()` una vez y aceptar los permisos.
+3. Ejecutar el menú Inventario > Importar y validar. Revisar la hoja `revisar`.
+4. Cargar los nombres de la cuadrilla en la hoja `relevadores`.
+5. Implementar > Nueva implementación > Aplicación web.
+   Ejecutar como **Yo**, acceso para **Cualquier persona**.
+   Cualquier otra opción devuelve una pantalla de login y la app falla
+   con un error de CORS.
+6. Pegar la URL `/exec` en `js/config.js`.
+7. Publicar el repo en GitHub Pages.
 
-Capa → Agregar capa → Agregar capa vectorial → Origen: Protocolo HTTP(S)
-Tipo: GeoJSON
-URL: `https://script.google.com/macros/s/<ID>/exec?accion=geojson&tipo=columna`
+Para verificar que el backend quedó público, abrir en una ventana de incógnito:
 
-Conviene una capa por tipo, así cada una tiene su simbología y sus campos.
-Para actualizar: clic derecho sobre la capa → Volver a cargar.
+```
+<URL>/exec?accion=ping
+```
 
-**Opción B, si el redirect de Apps Script da problemas**
+Tiene que devolver JSON. Si lleva al login de Google, el paso 5 quedó mal.
 
-Archivo → Compartir → Publicar en la web → hoja `elementos` en formato CSV.
-Después en QGIS: Capa de texto delimitado apuntando a esa URL, con
-`lon` = X e `lat` = Y, SRC EPSG:4326.
-Más estable, pero pierde los tramos y los atributos quedan sin aplanar.
+## Notas
 
-## Precisión
+`posgar` está duplicado a propósito: una copia corre en el navegador y otra
+dentro de Apps Script, que son entornos separados y no pueden compartir
+archivos. Si se toca uno, hay que actualizar el otro.
 
-El GPS de un celular entrega entre 3 y 10 m de error, peor entre edificios
-altos. El flujo asume esa limitación:
+GitHub Pages distingue mayúsculas de minúsculas aunque Windows no. Todos los
+nombres van en minúscula.
 
-1. `watchPosition` con `enableHighAccuracy`, promediando las mejores lecturas.
-2. Semáforo visual de precisión; por encima de 20 m se bloquea el guardado.
-3. Ajuste manual del pin sobre imagen satelital antes de confirmar.
+## Coordenadas
 
-Se guardan las dos coordenadas para poder auditar después qué tan confiable
-fue cada registro.
+El inventario original está en POSGAR 94 / Argentina faja 5 (EPSG:22185). El
+importador reproyecta a WGS84 y deja ambas versiones. De cada elemento relevado
+se guardan las dos coordenadas, la cruda del GPS y la corregida a mano, para
+poder auditar después la calidad de cada registro.
+
+## Estado
+
+Hecho: importación y validación, buscador, ficha con avance, captura GPS,
+ajuste en mapa, formularios por tipo, componentes en cadena.
+
+Pendiente: tramos con recorrido grabado, fotos, visor de solo lectura,
+service worker, campañas y modo oficina.
