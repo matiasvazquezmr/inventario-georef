@@ -145,6 +145,13 @@ var Formulario = (function () {
 
   function armarSelect(c, valor) {
     var s = document.createElement('select');
+    /* 'recordar' deja preseleccionada la ultima opcion usada. No
+       es herencia silenciosa: el campo sigue a la vista y se puede
+       cambiar. Sirve para no elegir la zona treinta veces por dia. */
+    if ((valor === undefined || valor === null || valor === '') && c.recordar
+        && typeof Almacen !== 'undefined') {
+      valor = Almacen.pref('ultimo_' + c.id);
+    }
     var vacio = document.createElement('option');
     vacio.value = '';
     vacio.textContent = c.requerido ? 'Elegí una opción' : 'Sin especificar';
@@ -327,8 +334,17 @@ var Formulario = (function () {
     });
   }
 
+  /* Guarda los valores de los campos marcados con 'recordar' */
+  function recordar(def, valores) {
+    if (typeof Almacen === 'undefined') return;
+    (def.campos || []).forEach(function (c) {
+      if (c.recordar && valores[c.id]) Almacen.pref('ultimo_' + c.id, valores[c.id]);
+    });
+  }
+
   return {
     crear: crear,
+    recordar: recordar,
     instalacionActual: null,
     _opcionesDe: opcionesDe,
     _cumple: cumple

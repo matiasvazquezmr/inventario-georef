@@ -266,6 +266,19 @@ var Ficha = (function () {
 
   /* ------------------- captura ------------------- */
 
+  /* Captura de un elemento que no pertenece a ninguna esquina,
+     como una camara de inspeccion a mitad de cuadra. Reusa todo
+     el flujo: GPS, mapa y formulario.                          */
+  function capturarSuelto(tipo, alTerminar) {
+    enCaptura = {
+      inst: { familia: '', inv: '', lat: null, lon: null, suelto: true },
+      tipo: tipo, punto: null, original: null, alTerminar: alTerminar
+    };
+    App.irA('captura');
+    pintarEsperaGPS();
+    GPS.on(alLeerGPS);
+  }
+
   function iniciarCaptura(inst, tipo) {
     enCaptura = { inst: inst, tipo: tipo, punto: null, original: null };
     App.irA('captura');
@@ -435,10 +448,21 @@ var Ficha = (function () {
     };
 
     Almacen.encolar('elementos', reg);
+    Formulario.recordar(CATALOGO.elementos[e.tipo], e.form.valores());
     Sync.subirPendientes();
 
     var def = CATALOGO.elementos[e.tipo];
     var inst = e.inst;
+
+    /* Elemento suelto: no hay ficha de instalación a la que volver */
+    if (inst.suelto) {
+      var cb = e.alTerminar;
+      enCaptura = null;
+      App.avisarGuardado((def.nombre || reg.tipo) + ' guardada');
+      if (cb) cb(reg);
+      App.irA('red', true);
+      return;
+    }
 
     /* Si el elemento tiene componentes, se sigue en cadena: el
        operario está parado ahí mirando la columna, es el momento
@@ -579,6 +603,7 @@ var Ficha = (function () {
 
   return {
     abrir: abrir,
+    capturarSuelto: capturarSuelto,
     salir: salir,
     actual: function () { return actual; }
   };

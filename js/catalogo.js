@@ -352,6 +352,12 @@ const CATALOGO = {
     camara_inspeccion: {
       nombre: 'Cámara de inspección', grupo: 'Obra civil', requiere_instalacion: false,
       campos: [
+        /* La zona NO se hereda de la instalación a propósito: no está
+           confirmado que los ductos respeten el límite entre zonas,
+           así que la decide quien releva. 'recordar' hace que quede
+           preseleccionada la última usada, sin ocultar la decisión. */
+        { id: 'zona', label: 'Zona de mantenimiento', tipo: 'select', origen: 'calle',
+          requerido: true, recordar: true, opciones: ['Norte', 'Sur'] },
         { id: 'medidas',    label: 'Medidas internas (cm)', tipo: 'texto', origen: 'calle' },
         { id: 'tapa',       label: 'Tapa', tipo: 'select', origen: 'calle',
           opciones: ['Hormigón', 'Hierro fundido', 'Chapa', 'Sin tapa'] },
@@ -362,7 +368,9 @@ const CATALOGO = {
           opciones: ['Cable de energía', 'Multipar telefónico', 'Fibra óptica',
                      'Reserva de fibra', 'Botella de empalme', 'Vacía'] },
         { id: 'bajo',       label: 'Ubicada bajo', tipo: 'select', origen: 'calle',
-          opciones: ['Vereda', 'Calzada', 'Cantero'] }
+          opciones: ['Vereda', 'Calzada', 'Cantero'] },
+        { id: 'observaciones', label: 'Observaciones', tipo: 'textarea', origen: 'ambos',
+          ayuda: 'Por ejemplo: se usa para cruce de calle, hay que cortar tránsito para abrirla, la tapa da a la calzada.' }
       ]
     },
 
@@ -481,14 +489,28 @@ const CATALOGO = {
     ducto: {
       nombre: 'Ducto / canalización', grupo: 'Obra civil',
       campos: [
+        { id: 'zona', label: 'Zona de mantenimiento', tipo: 'select', origen: 'calle',
+          requerido: true, recordar: true, opciones: ['Norte', 'Sur'],
+          ayuda: 'Quién mantiene este tramo. No se deduce de las cámaras.' },
+
+        /* "cruce" describe qué atraviesa el ducto; "bajo" describe
+           qué tiene encima. Un tramo puede ir bajo vereda y ser
+           igual un cruce, así que van separados.                  */
+        { id: 'cruce', label: 'Atraviesa', tipo: 'select', origen: 'calle', requerido: true,
+          opciones: ['No cruza, va por vereda', 'Cruce de calle',
+                     'Cruce de avenida o bulevar', 'Cantero central'] },
+        { id: 'bajo', label: 'Va bajo', tipo: 'select', origen: 'calle',
+          opciones: ['Vereda', 'Calzada', 'Cantero'] },
+
         { id: 'cant_caños', label: 'Cantidad de caños', tipo: 'entero', origen: 'calle' },
         { id: 'diametro_mm',label: 'Diámetro (mm)', tipo: 'texto', origen: 'calle' },
         { id: 'material',   label: 'Material', tipo: 'select', origen: 'calle',
           opciones: ['PVC', 'PEAD', 'Hierro', 'Desconocido'] },
-        { id: 'bajo',       label: 'Bajo', tipo: 'select', origen: 'calle',
-          opciones: ['Vereda', 'Calzada', 'Cantero', 'Cruce de calle'] },
         { id: 'ocupacion',  label: 'Ocupación', tipo: 'select', origen: 'calle',
-          opciones: ['Libre', 'Parcialmente ocupado', 'Lleno'] }
+          opciones: ['Libre', 'Parcialmente ocupado', 'Lleno'] },
+        { id: 'contenido',  label: 'Qué pasa hoy', tipo: 'multiselect', origen: 'calle',
+          opciones: ['Multipar telefónico', 'Fibra óptica', 'Cable de energía', 'Vacío'] },
+        { id: 'observaciones', label: 'Observaciones', tipo: 'textarea', origen: 'ambos' }
       ]
     },
     tendido_fo: {
@@ -513,6 +535,44 @@ const CATALOGO = {
           opciones: ['220V', '380V'] }
       ]
     }
+  },
+
+  /* ================================================================
+     OBSTRUCCIONES
+     Van sobre un tramo, no sobre un punto capturado con GPS: el
+     ducto esta enterrado y la obstruccion puede estar a 40 m de
+     donde uno esta parado. Se ubica por distancia sobre la linea.
+     ================================================================ */
+
+  obstrucciones: {
+
+    /* Tres formas de saber donde esta, de mejor a peor. La app
+       guarda cual se uso, asi despues se distingue un dato medido
+       de uno estimado.                                            */
+    metodos: [
+      { id: 'una_punta',  label: 'Sondeo desde una cámara',
+        ayuda: 'Se ubica en un punto sobre el tramo' },
+      { id: 'dos_puntas', label: 'Sondeo desde las dos cámaras',
+        ayuda: 'Además de ubicarla, da la extensión de la obstrucción' },
+      { id: 'sin_ubicar', label: 'Solo se sabe que no pasa',
+        ayuda: 'Queda marcado todo el tramo, sin ubicación precisa' }
+    ],
+
+    campos: [
+      { id: 'tipo', label: 'Tipo de obstrucción', tipo: 'select', origen: 'ambos',
+        requerido: true,
+        opciones: ['Tapón de barro o sedimento', 'Caño aplastado o colapsado',
+                   'Raíces', 'Cable abandonado que ocupa', 'Invasión de otro servicio',
+                   'Hormigón o escombro', 'Agua', 'Desconocida'] },
+      { id: 'severidad', label: 'Severidad', tipo: 'select', origen: 'ambos', requerido: true,
+        opciones: ['No pasa nada', 'Pasa la varilla pero no el cable', 'Pasa con dificultad'] },
+      { id: 'informado_por', label: 'Informado por', tipo: 'texto', origen: 'ambos',
+        ayuda: 'Empresa o persona que hizo el sondeo' },
+      { id: 'fecha_deteccion', label: 'Fecha de detección', tipo: 'fecha', origen: 'ambos' },
+      { id: 'estado', label: 'Estado', tipo: 'select', origen: 'ambos',
+        opciones: ['Vigente', 'Reparada', 'A verificar'] },
+      { id: 'observaciones', label: 'Observaciones', tipo: 'textarea', origen: 'ambos' }
+    ]
   },
 
   /* ================================================================

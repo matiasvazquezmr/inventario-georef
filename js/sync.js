@@ -86,7 +86,7 @@ var Sync = (function () {
     if (enVuelo) return Promise.resolve(null);
     var p = Almacen.pendientes();
     var total = (p.elementos || []).length + (p.componentes || []).length
-              + (p.tramos || []).length;
+              + (p.tramos || []).length + (p.obstrucciones || []).length;
     if (!total) return Promise.resolve({ vacia: true });
     if (!hayRed()) { avisar('cola:sin_red', total); return Promise.resolve(null); }
 
@@ -97,9 +97,10 @@ var Sync = (function () {
       accion: 'guardar',
       elementos: p.elementos || [],
       componentes: p.componentes || [],
-      tramos: p.tramos || []
+      tramos: p.tramos || [],
+      obstrucciones: p.obstrucciones || []
     }).then(function (d) {
-      ['elementos', 'componentes', 'tramos'].forEach(function (t) {
+      ['elementos', 'componentes', 'tramos', 'obstrucciones'].forEach(function (t) {
         if (d[t] && d[t].ids) Almacen.confirmar(t, d[t].ids);
       });
       enVuelo = false;
@@ -123,7 +124,7 @@ var Sync = (function () {
 
     return pedir(params).then(function (d) {
       var n = (d.elementos || []).length + (d.componentes || []).length
-            + (d.tramos || []).length;
+            + (d.tramos || []).length + (d.obstrucciones || []).length;
       if (n) {
         Almacen.fusionarRelevados(d);
         avisar('cambios:ok', n);

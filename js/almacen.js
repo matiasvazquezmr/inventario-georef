@@ -82,15 +82,17 @@ var Almacen = (function () {
   /* -------- lo ya relevado por la cuadrilla -------- */
 
   function relevados() {
-    return leer(K.relevados, { ts: null, elementos: [], componentes: [], tramos: [] });
+    return leer(K.relevados, { ts: null, elementos: [], componentes: [],
+                               tramos: [], obstrucciones: [] });
   }
 
   /* Mezcla los cambios que llegaron del servidor con lo que ya
      teniamos. Se pisa por id, que es la clave de todo.        */
   function fusionarRelevados(cambios) {
     var r = relevados();
-    ['elementos', 'componentes', 'tramos'].forEach(function (t) {
+    ['elementos', 'componentes', 'tramos', 'obstrucciones'].forEach(function (t) {
       if (!cambios[t] || !cambios[t].length) return;
+      if (!r[t]) r[t] = [];
       var porId = {};
       r[t].forEach(function (x) { porId[x.id] = x; });
       cambios[t].forEach(function (x) { porId[x.id] = x; });
@@ -111,7 +113,8 @@ var Almacen = (function () {
   /* ---------------- pendientes ---------------- */
 
   function pendientes() {
-    return leer(K.pendientes, { elementos: [], componentes: [], tramos: [], fotos: [] });
+    return leer(K.pendientes, { elementos: [], componentes: [], tramos: [],
+                                obstrucciones: [], fotos: [] });
   }
 
   function encolar(tipo, registro) {
@@ -155,7 +158,8 @@ var Almacen = (function () {
   function cantidadPendiente() {
     var p = pendientes();
     return (p.elementos || []).length + (p.componentes || []).length
-         + (p.tramos || []).length + (p.fotos || []).length;
+         + (p.tramos || []).length + (p.obstrucciones || []).length
+         + (p.fotos || []).length;
   }
 
   /* ---------------- preferencias ---------------- */

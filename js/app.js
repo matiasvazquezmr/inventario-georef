@@ -103,7 +103,13 @@ var App = (function () {
     tipo:      { el: 'vistaTipo',    titulo: 'Nuevo elemento' },
     captura:   { el: 'vistaCaptura', titulo: 'Capturar' },
     datos:     { el: 'vistaDatos',   titulo: 'Datos del elemento' },
-    comp:      { el: 'vistaComp',    titulo: 'Componentes' }
+    comp:      { el: 'vistaComp',    titulo: 'Componentes' },
+    red:       { el: 'vistaRed',     titulo: 'Red de ductos' },
+    camara:    { el: 'vistaCamara',  titulo: 'Cámara' },
+    conectar:  { el: 'vistaConectar',titulo: 'Conectar' },
+    tramoNuevo:{ el: 'vistaTramoNuevo', titulo: 'Nuevo ducto' },
+    tramo:     { el: 'vistaTramo',   titulo: 'Ducto' },
+    obstruccion:{el: 'vistaObstruccion', titulo: 'Obstrucción' }
   };
   var pila = ['principal'];
 
@@ -123,7 +129,7 @@ var App = (function () {
     });
     document.getElementById('titulo').textContent = VISTAS[v].titulo;
     document.getElementById('atras').hidden = (v === 'principal');
-    if (v === 'principal') { Ficha.salir(); GPS.detener(); }
+    if (v === 'principal') { Ficha.salir(); Red.salir(); GPS.detener(); }
     window.scrollTo(0, 0);
   }
 
@@ -138,6 +144,8 @@ var App = (function () {
     /* Al volver a la ficha se vuelve a dibujar: puede haber
        cambiado el avance por lo que se acaba de cargar.      */
     if (v === 'ficha' && Ficha.actual()) Ficha.abrir(Ficha.actual());
+    if (v === 'red') Red.abrirLista();
+    if (v === 'camara') Red.refrescar();
     pintarVista(v);
   }
 
@@ -302,6 +310,7 @@ var App = (function () {
     });
     document.getElementById('cajaBuscar').hidden = (s !== 'buscar');
     if (s === 'buscar') el.entrada.focus();
+    if (s === 'red') { Red.abrirLista(); pintarVista('red'); return; }
     render();
   }
 
