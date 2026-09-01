@@ -298,7 +298,7 @@ const CATALOGO = {
   elementos: {
 
     columna: {
-      grupo: 'Señalización', requiere_instalacion: true, familias: ['semaforo'],
+      nombre: 'Columna', grupo: 'Señalización', requiere_instalacion: true, familias: ['semaforo'],
       campos: [
         { id: 'subtipo', label: 'Tipo', tipo: 'select', origen: 'calle', requerido: true,
           opciones: [
@@ -321,7 +321,7 @@ const CATALOGO = {
     },
 
     gabinete_controlador: {
-      grupo: 'Control', requiere_instalacion: true, familias: ['semaforo'],
+      nombre: 'Gabinete de controlador', grupo: 'Control', requiere_instalacion: true, familias: ['semaforo'],
       campos: [
         { id: 'ubicacion', label: 'Ubicación en la esquina', tipo: 'select', origen: 'calle',
           opciones: ['NE', 'NO', 'SE', 'SO'] },
@@ -334,7 +334,7 @@ const CATALOGO = {
     },
 
     detector: {
-      grupo: 'Detección', requiere_instalacion: true, familias: ['punto_medida'],
+      nombre: 'Detector / espira', grupo: 'Detección', requiere_instalacion: true, familias: ['punto_medida'],
       ayuda: 'Cada espira física del punto de medida, una por carril',
       campos: [
         { id: 'id_detector', label: 'ID del detector', tipo: 'texto', origen: 'oficina',
@@ -350,7 +350,7 @@ const CATALOGO = {
     /* --- Conexionado. Nada de esto existe hoy en el inventario. --- */
 
     camara_inspeccion: {
-      grupo: 'Obra civil', requiere_instalacion: false,
+      nombre: 'Cámara de inspección', grupo: 'Obra civil', requiere_instalacion: false,
       campos: [
         { id: 'medidas',    label: 'Medidas internas (cm)', tipo: 'texto', origen: 'calle' },
         { id: 'tapa',       label: 'Tapa', tipo: 'select', origen: 'calle',
@@ -367,7 +367,7 @@ const CATALOGO = {
     },
 
     botella_empalme: {
-      grupo: 'Fibra óptica', requiere_instalacion: false,
+      nombre: 'Botella de empalme', grupo: 'Fibra óptica', requiere_instalacion: false,
       campos: [
         { id: 'alojamiento', label: 'Alojada en', tipo: 'select', origen: 'calle',
           opciones: ['Cámara de inspección', 'Aérea sobre poste', 'Gabinete', 'Enterrada'] },
@@ -382,7 +382,7 @@ const CATALOGO = {
     },
 
     odf: {
-      grupo: 'Fibra óptica', requiere_instalacion: false,
+      nombre: 'ODF', grupo: 'Fibra óptica', requiere_instalacion: false,
       campos: [
         { id: 'alojamiento', label: 'Alojado en', tipo: 'select', origen: 'calle',
           opciones: ['Gabinete de controlador', 'Rack', 'Caja mural', 'Pilar'] },
@@ -395,7 +395,7 @@ const CATALOGO = {
     },
 
     switch_fo: {
-      grupo: 'Fibra óptica', requiere_instalacion: false,
+      nombre: 'Switch', grupo: 'Fibra óptica', requiere_instalacion: false,
       campos: [
         { id: 'marca',   label: 'Marca',  tipo: 'texto', origen: 'ambos' },
         { id: 'modelo',  label: 'Modelo', tipo: 'texto', origen: 'ambos' },
@@ -409,7 +409,7 @@ const CATALOGO = {
     },
 
     gabinete_fo: {
-      grupo: 'Fibra óptica', requiere_instalacion: false,
+      nombre: 'Gabinete de fibra', grupo: 'Fibra óptica', requiere_instalacion: false,
       campos: [
         { id: 'medidas', label: 'Medidas (cm)', tipo: 'texto', origen: 'calle' },
         { id: 'montaje', label: 'Montaje', tipo: 'select', origen: 'calle',
@@ -420,7 +420,7 @@ const CATALOGO = {
     },
 
     acometida: {
-      grupo: 'Obra civil', requiere_instalacion: false,
+      nombre: 'Acometida eléctrica', grupo: 'Obra civil', requiere_instalacion: false,
       campos: [
         { id: 'nro_medidor', label: 'N° de medidor', tipo: 'texto', origen: 'ambos' },
         { id: 'tipo',    label: 'Tipo', tipo: 'select', origen: 'calle',
