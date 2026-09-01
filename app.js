@@ -20,6 +20,22 @@ var App = (function () {
     central_zona: 'Central de zona'
   };
 
+  var faltantes = [];
+
+  /* Engancha un evento sin asumir que el elemento existe */
+  function enlazar(id, evento, fn) {
+    var n = document.getElementById(id);
+    if (!n) { faltantes.push(id); return null; }
+    n.addEventListener(evento, fn);
+    return n;
+  }
+
+  function nodo(id) {
+    var n = document.getElementById(id);
+    if (!n) faltantes.push(id);
+    return n;
+  }
+
   /* En un celular no se puede abrir la consola, asi que
      cualquier error tiene que verse en la pantalla.       */
   function mostrarFatal(msg) {
@@ -40,15 +56,15 @@ var App = (function () {
   /* ------------------- arranque ------------------- */
 
   function iniciar() {
-    el.portada   = document.getElementById('portada');
-    el.principal = document.getElementById('principal');
-    el.quien     = document.getElementById('quien');
-    el.punto     = document.getElementById('punto');
-    el.estadoTxt = document.getElementById('estadoTxt');
-    el.entrada   = document.getElementById('entrada');
-    el.pista     = document.getElementById('pista');
-    el.lista     = document.getElementById('lista');
-    el.selector  = document.getElementById('selectorRelevador');
+    el.portada   = nodo('portada');
+    el.principal = nodo('principal');
+    el.quien     = nodo('quien');
+    el.punto     = nodo('punto');
+    el.estadoTxt = nodo('estadoTxt');
+    el.entrada   = nodo('entrada');
+    el.pista     = nodo('pista');
+    el.lista     = nodo('lista');
+    el.selector  = nodo('selectorRelevador');
 
     Sync.on(alCambiarEstado);
     Sync.iniciar();
@@ -57,12 +73,21 @@ var App = (function () {
       b.addEventListener('click', function () { cambiarSolapa(b.dataset.solapa); });
     });
 
-    el.entrada.addEventListener('input', debounce(buscar, 160));
-    document.getElementById('sincronizar').addEventListener('click', sincronizar);
-    document.getElementById('entrar').addEventListener('click', entrar);
-    document.getElementById('revisar').addEventListener('click', diagnosticar);
-    document.getElementById('atras').addEventListener('click', volver);
+    /* Si el index.html quedó desactualizado respecto del JS,
+       falta algún elemento. Antes eso tumbaba toda la app; ahora
+       se anota y se sigue, y el diagnóstico lo muestra.        */
+    enlazar('entrada', 'input', debounce(buscar, 160));
+    enlazar('sincronizar', 'click', sincronizar);
+    enlazar('entrar', 'click', entrar);
+    enlazar('revisar', 'click', diagnosticar);
+    enlazar('atras', 'click', volver);
     window.addEventListener('popstate', retroceder);
+
+    if (faltantes.length) {
+      mostrarFatal('El index.html no coincide con el resto de los archivos.\n'
+        + 'Faltan estos elementos: ' + faltantes.join(', ')
+        + '\n\nSubí la versión nueva de index.html.');
+    }
 
     if (Almacen.pref('relevador')) mostrarPrincipal();
     else mostrarPortada();
@@ -76,7 +101,9 @@ var App = (function () {
     principal: { el: 'principal',    titulo: 'Relevamiento' },
     ficha:     { el: 'vistaFicha',   titulo: 'Instalación' },
     tipo:      { el: 'vistaTipo',    titulo: 'Nuevo elemento' },
-    captura:   { el: 'vistaCaptura', titulo: 'Capturar' }
+    captura:   { el: 'vistaCaptura', titulo: 'Capturar' },
+    datos:     { el: 'vistaDatos',   titulo: 'Datos del elemento' },
+    comp:      { el: 'vistaComp',    titulo: 'Componentes' }
   };
   var pila = ['principal'];
 
