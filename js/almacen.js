@@ -162,6 +162,25 @@ var Almacen = (function () {
          + (p.fotos || []).length;
   }
 
+  /* ---------------- sesión ----------------
+     sessionStorage sobrevive a un refresco pero se borra al
+     cerrar la app. Es exactamente lo que queremos: recargar la
+     página no es "empezar de nuevo", cerrar la app sí.        */
+
+  function sesionActiva() {
+    try { return sessionStorage.getItem('gs.sesion') === '1'; }
+    catch (e) { return false; }
+  }
+
+  function abrirSesion() {
+    try { sessionStorage.setItem('gs.sesion', '1'); } catch (e) {}
+    pref('ultimo_uso', Date.now());
+  }
+
+  function cerrarSesion() {
+    try { sessionStorage.removeItem('gs.sesion'); } catch (e) {}
+  }
+
   /* ---------------- preferencias ---------------- */
 
   function prefs() { return leer(K.prefs, {}); }
@@ -202,6 +221,9 @@ var Almacen = (function () {
     confirmar: confirmar,
     cantidadPendiente: cantidadPendiente,
     pref: pref,
+    sesionActiva: sesionActiva,
+    abrirSesion: abrirSesion,
+    cerrarSesion: cerrarSesion,
     nuevoId: nuevoId,
     espacioUsado: espacioUsado
   };

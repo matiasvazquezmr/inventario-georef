@@ -13,7 +13,7 @@
 <header class="barra">
   <button class="atras" id="atras" type="button" aria-label="Volver" hidden>&lsaquo;</button>
   <h1 id="titulo">Relevamiento</h1>
-  <span class="quien" id="quien"></span>
+  <button class="quien" id="quien" type="button" hidden></button>
   <button class="estado" id="sincronizar" type="button">
     <span class="punto" id="punto"></span>
     <span id="estadoTxt">Al día</span>
@@ -25,13 +25,20 @@
 
 <!-- Alta del relevador -->
 <section class="portada" id="portada" hidden>
-  <h2>¿Quién está relevando?</h2>
-  <p>Tu nombre queda guardado en cada registro que cargues.</p>
+  <h2 id="tituloPortada">¿Quién está relevando?</h2>
+  <p id="subPortada">Tu nombre queda guardado en cada registro que cargues.</p>
+
+  <button class="boton" id="continuar" type="button" hidden></button>
+  <button class="boton tenue" id="cambiar" type="button" hidden
+          style="width:100%;margin-bottom:22px">Es otra persona</button>
+
+  <div id="eleccion">
   <select id="selectorRelevador" aria-label="Relevador"></select>
   <p class="separador" id="sepPortada">o</p>
   <input id="nombreManual" type="text" placeholder="Escribí tu nombre"
          autocomplete="off" aria-label="Nombre del relevador">
   <button class="boton" id="entrar" type="button">Empezar</button>
+  </div>
 
   <div class="aviso" id="avisoPortada" hidden>
     <b>No hay relevadores cargados</b>
@@ -82,6 +89,9 @@
 
 <!-- Componentes en cadena -->
 <main id="vistaComp" hidden></main>
+
+<!-- Confirmación de guardado -->
+<main id="vistaGuardado" hidden></main>
 
 <!-- Red de ductos -->
 <main id="vistaCamara" hidden></main>

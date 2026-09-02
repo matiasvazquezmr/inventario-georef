@@ -470,30 +470,69 @@ var Ficha = (function () {
 
     var def = CATALOGO.elementos[e.tipo];
     var inst = e.inst;
-
-    /* Elemento suelto: no hay ficha de instalación a la que volver */
-    if (inst.suelto) {
-      var cb = e.alTerminar;
-      enCaptura = null;
-      App.avisarGuardado((def.nombre || reg.tipo) + ' guardada');
-      if (cb) cb(reg);
-      App.volverARed();
-      return;
-    }
-
-    /* Si el elemento tiene componentes, se sigue en cadena: el
-       operario está parado ahí mirando la columna, es el momento
-       de contar los cuerpos, no después desde la oficina.       */
-    if (def.componentes && def.componentes.length) {
-      enCaptura = null;
-      abrirComponentes(inst, reg, def.componentes);
-      return;
-    }
-
+    var cb = e.alTerminar;
     enCaptura = null;
-    abrir(inst);
-    App.irA('ficha', true);
-    App.avisarGuardado((def.nombre || reg.tipo) + ' guardado');
+
+    /* Pantalla de confirmación en vez de dejar al operario
+       adivinando si guardó y sin una salida clara.           */
+    confirmar(reg, def, inst, cb);
+  }
+
+  /* ------------------- confirmación ------------------- */
+
+  function confirmar(reg, def, inst, cb) {
+    var c = document.getElementById('vistaGuardado');
+    var detalle = 'Precisión ' + Math.round(reg.accuracy_m) + ' m'
+                + (reg.ajustado ? '  ·  ajustado a mano' : '');
+
+    var html = ''
+      + '<div class="exito">'
+      +   '<span class="tilde">✓</span>'
+      +   '<h2>' + (def.nombre || reg.tipo) + ' guardada</h2>'
+      +   '<p class="sub">' + detalle + '</p>'
+      + '</div>'
+      + '<div class="bloque opciones">';
+
+    var acciones = [];
+
+    if (def.componentes && def.componentes.length) {
+      var nomComp = CATALOGO.componentes[def.componentes[0]];
+      acciones.push({ id: 'comp', label: 'Cargar sus ' +
+        ((nomComp && nomComp.nombre) || 'componentes').toLowerCase() + 's', principal: true });
+    }
+    if (reg.tipo === 'camara_inspeccion') {
+      acciones.push({ id: 'conectar', label: 'Conectar con otra cámara', principal: true });
+    }
+    acciones.push({ id: 'otro', label: 'Cargar otra ' + (def.nombre || '').toLowerCase() });
+    acciones.push({ id: 'volver', label: inst.suelto ? 'Volver a la red' : 'Volver a la esquina' });
+
+    acciones.forEach(function (a, i) {
+      html += '<button class="boton' + (a.principal && i === 0 ? '' : ' tenue')
+            + '" data-accion="' + a.id + '" type="button">' + a.label + '</button>';
+    });
+    html += '</div>';
+
+    c.innerHTML = html;
+
+    c.querySelectorAll('[data-accion]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var a = b.dataset.accion;
+        if (a === 'comp') {
+          abrirComponentes(inst, reg, def.componentes);
+        } else if (a === 'conectar') {
+          if (cb) cb(reg);
+          Red.abrirCamara(reg);
+        } else if (a === 'otro') {
+          if (inst.suelto) capturarSuelto(reg.tipo, cb);
+          else iniciarCaptura(inst, reg.tipo);
+        } else {
+          if (inst.suelto) { if (cb) cb(reg); App.volverARed(); }
+          else { abrir(inst); App.irA('ficha', true); }
+        }
+      });
+    });
+
+    App.irA('guardado', true);
   }
 
   /* ------------------- componentes en cadena ------------------- */
@@ -556,8 +595,10 @@ var Ficha = (function () {
 
     html += '<div class="bloque" id="formComp"></div>'
           + '<div class="bloque acciones">'
-          +   '<button class="boton tenue" id="btnListo" type="button">Listo</button>'
-          +   '<button class="boton" id="btnOtro" type="button">Agregar</button>'
+          +   '<button class="boton' + (puestos.length ? '' : ' tenue')
+          +     '" id="btnListo" type="button">Terminar</button>'
+          +   '<button class="boton' + (puestos.length ? ' tenue' : '')
+          +     '" id="btnOtro" type="button">Agregar</button>'
           + '</div>';
 
     c.innerHTML = html;

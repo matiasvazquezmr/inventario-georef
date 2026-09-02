@@ -9,7 +9,7 @@ var App = (function () {
   /* Subir esto cada vez que cambia la estructura del HTML.
      El diagnóstico lo muestra, así se detecta al instante si
      los archivos quedaron desincronizados.                  */
-  var VERSION = '3.2';
+  var VERSION = '3.3';
 
   var el = {};
   var posicion = null;
@@ -89,6 +89,9 @@ var App = (function () {
     enlazar('sincronizar', 'click', sincronizar);
     enlazar('entrar', 'click', entrar);
     enlazar('revisar', 'click', diagnosticar);
+    enlazar('continuar', 'click', continuarSesion);
+    enlazar('cambiar', 'click', pedirNombre);
+    enlazar('quien', 'click', cambiarRelevador);
     enlazar('atras', 'click', volver);
     window.addEventListener('popstate', retroceder);
 
@@ -98,10 +101,11 @@ var App = (function () {
         + '\n\nSubí la versión nueva de index.html.');
     }
 
-    /* Siempre se pregunta quién releva. La cuadrilla comparte
-       equipos y el nombre viaja en cada registro; heredarlo de la
-       sesión anterior es la forma más fácil de atribuir mal.    */
-    mostrarPortada();
+    /* Un refresco de página no es empezar de nuevo. Si la sesión
+       sigue abierta se entra directo; si no, se pregunta, pero
+       con un atajo de un toque para el caso habitual.          */
+    if (Almacen.sesionActiva() && Almacen.pref('relevador')) mostrarPrincipal();
+    else mostrarPortada();
   }
 
   /* ------------------- navegación -------------------
@@ -115,6 +119,7 @@ var App = (function () {
     captura:   { el: 'vistaCaptura', titulo: 'Capturar' },
     datos:     { el: 'vistaDatos',   titulo: 'Datos del elemento' },
     comp:      { el: 'vistaComp',    titulo: 'Componentes' },
+    guardado:  { el: 'vistaGuardado',titulo: 'Guardado' },
     camara:    { el: 'vistaCamara',  titulo: 'Cámara' },
     conectar:  { el: 'vistaConectar',titulo: 'Conectar' },
     tramoNuevo:{ el: 'vistaTramoNuevo', titulo: 'Nuevo ducto' },
@@ -175,7 +180,52 @@ var App = (function () {
   function mostrarPortada() {
     el.portada.hidden = false;
     el.principal.hidden = true;
+    document.getElementById('quien').hidden = true;
     poblarRelevadores();
+
+    /* Si ya hubo alguien en este equipo, el caso normal es que
+       siga siendo la misma persona: un toque y adentro.        */
+    var ultimo = Almacen.pref('relevador');
+    var cont = document.getElementById('continuar');
+    var cambiar = document.getElementById('cambiar');
+    var eleccion = document.getElementById('eleccion');
+
+    if (ultimo) {
+      document.getElementById('tituloPortada').textContent = 'Hola de nuevo';
+      document.getElementById('subPortada').textContent =
+        'Si sos otra persona, cambialo antes de empezar.';
+      cont.textContent = 'Continuar como ' + ultimo;
+      cont.hidden = false;
+      cambiar.hidden = false;
+      eleccion.hidden = true;
+    } else {
+      cont.hidden = true;
+      cambiar.hidden = true;
+      eleccion.hidden = false;
+    }
+  }
+
+  function continuarSesion() {
+    Almacen.abrirSesion();
+    mostrarPrincipal();
+  }
+
+  /* Muestra el selector, ocultando el atajo */
+  function pedirNombre() {
+    document.getElementById('tituloPortada').textContent = '¿Quién está relevando?';
+    document.getElementById('subPortada').textContent =
+      'Tu nombre queda guardado en cada registro que cargues.';
+    document.getElementById('continuar').hidden = true;
+    document.getElementById('cambiar').hidden = true;
+    document.getElementById('eleccion').hidden = false;
+    poblarRelevadores();
+  }
+
+  /* Desde la barra superior, sin recargar */
+  function cambiarRelevador() {
+    Almacen.cerrarSesion();
+    mostrarPortada();
+    pedirNombre();
   }
 
   /* La lista sale de la hoja 'relevadores', no de quienes usaron
@@ -231,6 +281,7 @@ var App = (function () {
       return;
     }
     Almacen.pref('relevador', n);
+    Almacen.abrirSesion();
     mostrarPrincipal();
   }
 
@@ -313,9 +364,12 @@ var App = (function () {
   }
 
   function mostrarPrincipal() {
+    Almacen.abrirSesion();
     el.portada.hidden = true;
     el.principal.hidden = false;
+    el.quien.hidden = false;
     el.quien.textContent = Almacen.pref('relevador') || '';
+    el.quien.title = 'Tocá para cambiar de relevador';
     seguirPosicion();
     cambiarSolapa('cerca');
   }
