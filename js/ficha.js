@@ -63,16 +63,29 @@ var Ficha = (function () {
     var box = document.createElement('div');
     box.className = 'bloque';
 
+    /* El número de inventario va primero y como chapa: es lo que
+       conecta la app con la planilla y lo primero que se busca. */
+    if (inst.inv) {
+      var chapa = document.createElement('div');
+      chapa.className = 'chapa';
+      chapa.textContent = inst.inv;
+      box.appendChild(chapa);
+    }
+
     var h = document.createElement('h2');
     h.textContent = (inst.calle_1 || '') + (inst.calle_2 ? ' y ' + inst.calle_2 : '');
     box.appendChild(h);
 
-    var sub = document.createElement('p');
-    sub.className = 'sub';
-    sub.textContent = 'Inventario ' + inst.inv
-      + (inst.zona ? '  ·  ' + inst.zona : '')
-      + (inst.distrito ? '  ·  ' + inst.distrito : '');
-    box.appendChild(sub);
+    var ubic = [];
+    if (inst.zona) ubic.push('Zona ' + String(inst.zona).replace(/^Zona /i, '')
+                              .replace('1', 'norte').replace('2', 'sur'));
+    if (inst.distrito) ubic.push('distrito ' + capitalizar(inst.distrito));
+    if (ubic.length) {
+      var sub = document.createElement('p');
+      sub.className = 'sub';
+      sub.textContent = ubic.join(', ');
+      box.appendChild(sub);
+    }
 
     /* Solo lo que sirve en la calle. El resto vive en la planilla. */
     var utiles = [
@@ -145,29 +158,26 @@ var Ficha = (function () {
       return box;
     }
 
+    /* El número dice cuánto falta antes de leer la etiqueta.
+       La barra de progreso no agregaba precisión, solo ruido. */
     filas.forEach(function (f) {
       var fila = document.createElement('div');
       fila.className = 'avance';
+
+      var n = document.createElement('span');
+      n.className = 'av-num' + (f.rel >= f.dec ? ' listo' : '');
+      n.textContent = f.rel;
+      var de = document.createElement('span');
+      de.className = 'de';
+      de.textContent = '/' + (f.dec % 1 ? f.dec.toFixed(1) : f.dec);
+      n.appendChild(de);
 
       var et = document.createElement('span');
       et.className = 'av-et';
       et.textContent = f.etiqueta;
 
-      var barra = document.createElement('span');
-      barra.className = 'av-barra';
-      var relleno = document.createElement('span');
-      var pct = Math.min(100, Math.round(f.rel / f.dec * 100));
-      relleno.style.width = pct + '%';
-      relleno.className = f.rel >= f.dec ? 'lleno' : '';
-      barra.appendChild(relleno);
-
-      var n = document.createElement('span');
-      n.className = 'av-num' + (f.rel >= f.dec ? ' listo' : '');
-      n.textContent = f.rel + ' / ' + (f.dec % 1 ? f.dec.toFixed(1) : f.dec);
-
-      fila.appendChild(et);
-      fila.appendChild(barra);
       fila.appendChild(n);
+      fila.appendChild(et);
       box.appendChild(fila);
     });
 
@@ -181,7 +191,7 @@ var Ficha = (function () {
     if (!elementos.length) return box;
 
     var h = document.createElement('h3');
-    h.textContent = 'Ya relevado acá';
+    h.textContent = 'Relevado acá';
     box.appendChild(h);
 
     var ul = document.createElement('ul');
@@ -192,12 +202,12 @@ var Ficha = (function () {
       var li = document.createElement('li');
       var t = (CATALOGO.elementos[e.tipo] && CATALOGO.elementos[e.tipo].nombre) || e.tipo;
       var pend = Almacen.pendientes().elementos.some(function (p) { return p.id === e.id; });
-      li.innerHTML = '<b></b><span></span>';
-      li.querySelector('b').textContent = t;
-      li.querySelector('span').textContent =
-        (e.relevador || '') + (e.ajustado ? '  ·  ajustado' : '')
-        + (e.accuracy_m ? '  ·  ' + Math.round(e.accuracy_m) + ' m' : '')
-        + (pend ? '  ·  sin subir' : '');
+      li.innerHTML = '<b></b><span class="num"></span>';
+      var a = {};
+      try { a = JSON.parse(e.atributos_json || '{}'); } catch (x) {}
+      li.querySelector('b').textContent = t + (a.subtipo ? ' ' + etiquetaSubtipo(e.tipo, a.subtipo) : '');
+      li.querySelector('span').textContent = pend ? 'sin subir'
+        : (e.accuracy_m ? Math.round(e.accuracy_m) + ' m' : '');
       ul.appendChild(li);
     });
     box.appendChild(ul);
@@ -206,15 +216,33 @@ var Ficha = (function () {
 
   function botonAgregar(inst) {
     var box = document.createElement('div');
-    box.className = 'bloque';
+    box.className = 'accion-fija';
     var b = document.createElement('button');
     b.className = 'boton';
-    b.style.width = '100%';
     b.type = 'button';
     b.textContent = 'Agregar elemento';
     b.addEventListener('click', function () { elegirTipo(inst); });
     box.appendChild(b);
     return box;
+  }
+
+  function capitalizar(s) {
+    if (!s) return '';
+    s = String(s).toLowerCase();
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  /* Devuelve la etiqueta legible de un subtipo del catálogo */
+  function etiquetaSubtipo(tipo, id) {
+    var def = CATALOGO.elementos[tipo];
+    if (!def) return id;
+    var campo = (def.campos || []).filter(function (c) { return c.id === 'subtipo'; })[0];
+    if (!campo || !campo.opciones) return id;
+    var op = campo.opciones.filter(function (o) {
+      return (typeof o === 'string' ? o : o.id) === id;
+    })[0];
+    if (!op) return id;
+    return (typeof op === 'string' ? op : op.label).toLowerCase();
   }
 
   /* ------------------- elegir qué se releva ------------------- */

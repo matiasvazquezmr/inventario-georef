@@ -9,12 +9,21 @@ var App = (function () {
   /* Subir esto cada vez que cambia la estructura del HTML.
      El diagnóstico lo muestra, así se detecta al instante si
      los archivos quedaron desincronizados.                  */
-  var VERSION = '3.3';
+  var VERSION = '4.0';
 
   var el = {};
   var posicion = null;
   var watchId = null;
   var solapa = 'cerca';
+
+  var PLURAL = {
+    semaforo: 'Semáforos',
+    punto_medida: 'Puntos de medida',
+    pmv: 'Pantallas de mensajería',
+    pov: 'Onda verde',
+    cctv: 'Cámaras',
+    central_zona: 'Centrales de zona'
+  };
 
   var NOMBRE_FAMILIA = {
     semaforo: 'Semáforo',
@@ -455,20 +464,133 @@ var App = (function () {
     else buscar();
   }
 
+  /* Grupo abierto. Se recuerda mientras dure la sesión: si estás
+     relevando cámaras toda la tarde, no se te cierra solo cada vez
+     que el GPS actualiza la posición.                            */
+  var grupoAbierto = null;
+
   function renderCerca() {
     if (!posicion) {
       pintarVacio('Buscando tu ubicación', 'Esperá unos segundos.');
       return;
     }
-    var r = Buscador.cerca(posicion);
+    var r = Buscador.cerca(posicion, { max: 60 });
     if (!r.length) {
       pintarVacio('No hay instalaciones cerca',
                   'Estás a más de ' + CONFIG.BUSQUEDA.radio_cerca_m
                   + ' m de la más próxima. Buscá por número o por calle.');
       return;
     }
-    pintarLista(r);
-    el.pista.textContent = 'Tu posición tiene ' + Math.round(posicion.acc) + ' m de precisión.';
+
+    /* Agrupado por familia y ordenado por cercanía: arriba queda
+       el grupo que contiene lo que tenés más cerca.             */
+    var grupos = {};
+    r.forEach(function (x) {
+      if (!grupos[x.familia]) grupos[x.familia] = [];
+      grupos[x.familia].push(x);
+    });
+    var orden = Object.keys(grupos).sort(function (a, b) {
+      return grupos[a][0].dist_m - grupos[b][0].dist_m;
+    });
+
+    /* Si nunca se tocó nada, se abre el que tiene lo más próximo */
+    if (grupoAbierto === null || orden.indexOf(grupoAbierto) < 0) {
+      grupoAbierto = orden[0];
+    }
+
+    el.lista.innerHTML = '';
+    el.lista.className = 'grupos';
+
+    orden.forEach(function (fam) {
+      var items = grupos[fam];
+      var abierto = (fam === grupoAbierto);
+      el.lista.appendChild(cabeceraGrupo(fam, items, abierto));
+      if (abierto) items.forEach(function (x) {
+        el.lista.appendChild(filaInstalacion(x));
+      });
+    });
+
+    el.pista.textContent = 'Tu posición tiene ' + Math.round(posicion.acc) + ' m de precisión';
+  }
+
+  function cabeceraGrupo(fam, items, abierto) {
+    var li = document.createElement('li');
+    var b = document.createElement('button');
+    b.className = 'grupo-fila';
+    b.type = 'button';
+    b.dataset.familia = fam;
+    b.setAttribute('aria-expanded', abierto ? 'true' : 'false');
+
+    var punto = document.createElement('span');
+    punto.className = 'punto-fam';
+
+    var nom = document.createElement('span');
+    nom.className = 'grupo-nombre';
+    nom.textContent = (PLURAL[fam] || NOMBRE_FAMILIA[fam] || fam) + ' ';
+    var cuenta = document.createElement('span');
+    cuenta.className = 'cuenta';
+    cuenta.textContent = items.length;
+    nom.appendChild(cuenta);
+
+    /* La distancia del encabezado es la del más cercano del grupo:
+       es el dato con el que decidís si vale la pena abrirlo.     */
+    var d = document.createElement('span');
+    d.className = 'dist num' + (items[0].dist_m <= 25 ? ' pegado' : '');
+    d.textContent = formatoDist(items[0].dist_m);
+
+    var fl = document.createElement('span');
+    fl.className = 'flecha';
+    fl.textContent = abierto ? '\u25be' : '\u25b8';
+
+    b.appendChild(punto); b.appendChild(nom); b.appendChild(d); b.appendChild(fl);
+    b.addEventListener('click', function () {
+      grupoAbierto = abierto ? null : fam;
+      renderCerca();
+    });
+    li.appendChild(b);
+    return li;
+  }
+
+  function filaInstalacion(r) {
+    var li = document.createElement('li');
+    var b = document.createElement('button');
+    b.className = 'fila';
+    b.type = 'button';
+
+    var inv = document.createElement('span');
+    inv.className = 'inv';
+    inv.textContent = r.inv;
+
+    var cruce = document.createElement('span');
+    cruce.className = 'cruce';
+    var nom = document.createElement('b');
+    nom.textContent = (r.calle_1 || '') + (r.calle_2 ? ' y ' + r.calle_2 : '');
+    cruce.appendChild(nom);
+    var n = Almacen.elementosDe(r.inv).length;
+    if (n) {
+      var sub = document.createElement('span');
+      sub.textContent = n + (n === 1 ? ' elemento relevado' : ' elementos relevados');
+      cruce.appendChild(sub);
+    }
+
+    b.appendChild(inv);
+    b.appendChild(cruce);
+
+    if (r.dist_m !== null) {
+      var d = document.createElement('span');
+      d.className = 'dist num' + (r.dist_m <= 25 ? ' pegado' : '');
+      d.textContent = formatoDist(r.dist_m);
+      b.appendChild(d);
+    }
+
+    b.addEventListener('click', function () { abrirFicha(r); });
+    li.appendChild(b);
+    return li;
+  }
+
+  function formatoDist(m) {
+    if (m === null || m === undefined) return '';
+    return m < 1000 ? m + ' m' : (m / 1000).toFixed(1) + ' km';
   }
 
   function buscar() {
@@ -489,50 +611,26 @@ var App = (function () {
     el.pista.textContent = r.length + (r.length === 1 ? ' resultado' : ' resultados');
   }
 
+  /* La búsqueda por texto va plana: ya filtraste vos, agrupar
+     escondería resultados detrás de un toque.                  */
   function pintarLista(resultados) {
     el.lista.innerHTML = '';
+    el.lista.className = 'lista';
     resultados.forEach(function (r) {
-      var li = document.createElement('li');
-      var b = document.createElement('button');
-      b.className = 'fila';
-      b.dataset.familia = r.familia;
-      b.dataset.inv = r.inv;
-
-      var inv = document.createElement('span');
-      inv.className = 'inv';
-      inv.textContent = r.inv;
-
-      var cruce = document.createElement('span');
-      cruce.className = 'cruce';
-      var nom = document.createElement('b');
-      nom.textContent = (r.calle_1 || '') + (r.calle_2 ? ' y ' + r.calle_2 : '');
-      var sub = document.createElement('span');
-      var relevados = Almacen.elementosDe(r.inv).length;
-      sub.textContent = (NOMBRE_FAMILIA[r.familia] || r.familia)
-                      + (relevados ? '  ·  ' + relevados + ' relevado'
-                                     + (relevados === 1 ? '' : 's') : '');
-      cruce.appendChild(nom);
-      cruce.appendChild(sub);
-
-      b.appendChild(inv);
-      b.appendChild(cruce);
-
-      if (r.dist_m !== null) {
-        var d = document.createElement('span');
-        d.className = 'dist' + (r.dist_m <= 25 ? ' pegado' : '');
-        d.textContent = r.dist_m < 1000 ? r.dist_m + ' m'
-                                        : (r.dist_m / 1000).toFixed(1) + ' km';
-        b.appendChild(d);
+      var li = filaInstalacion(r);
+      var sub = li.querySelector('.cruce span');
+      if (!sub) {
+        sub = document.createElement('span');
+        li.querySelector('.cruce').appendChild(sub);
       }
-
-      b.addEventListener('click', function () { abrirFicha(r); });
-      li.appendChild(b);
+      sub.textContent = NOMBRE_FAMILIA[r.familia] || r.familia;
       el.lista.appendChild(li);
     });
   }
 
   function pintarVacio(titulo, texto) {
     el.lista.innerHTML = '';
+    el.lista.className = 'lista';
     var d = document.createElement('div');
     d.className = 'vacio';
     var h = document.createElement('p');
