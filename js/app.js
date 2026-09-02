@@ -9,7 +9,7 @@ var App = (function () {
   /* Subir esto cada vez que cambia la estructura del HTML.
      El diagnóstico lo muestra, así se detecta al instante si
      los archivos quedaron desincronizados.                  */
-  var VERSION = '3.1';
+  var VERSION = '3.2';
 
   var el = {};
   var posicion = null;
@@ -46,9 +46,13 @@ var App = (function () {
   function mostrarFatal(msg) {
     var f = document.getElementById('fatal');
     if (!f) { alert(msg); return; }
+    var hora = new Date().toLocaleTimeString();
     f.hidden = false;
-    f.textContent = 'Algo se rompió\n\n' + msg
-      + '\n\nTocá «Revisar configuración» para ver qué falta.';
+    f.textContent = 'Algo se rompió  (' + hora + ')\n\n' + msg
+      + '\n\nTocá acá para cerrar este aviso.';
+    /* Con la hora se distingue un error nuevo de uno viejo que
+       quedó en pantalla, y se puede descartar de un toque.     */
+    f.onclick = function () { f.hidden = true; };
   }
 
   window.addEventListener('error', function (e) {

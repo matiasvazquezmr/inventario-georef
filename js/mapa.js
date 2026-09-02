@@ -12,6 +12,18 @@
 
 var Mapa = (function () {
 
+  /* OJO: isFinite(null) devuelve true, porque null se convierte a 0.
+     Lo mismo con '' y con []. Para validar coordenadas hace falta
+     comprobar el tipo, si no un marcador en [null,null] llega hasta
+     Leaflet y revienta adentro de la librería.                    */
+  function esCoord(v) {
+    return typeof v === 'number' && isFinite(v);
+  }
+
+  function puntoValido(p) {
+    return !!p && esCoord(p.lat) && esCoord(p.lon);
+  }
+
   var mapa = null;
   var pin = null;
   var circulo = null;
@@ -54,6 +66,11 @@ var Mapa = (function () {
     var o = opciones || {};
     destruir();
 
+    if (!puntoValido(punto)) {
+      console.warn('Mapa: punto inválido', punto);
+      return null;
+    }
+
     mapa = L.map(contenedor, {
       zoomControl: true,
       attributionControl: true,
@@ -69,13 +86,13 @@ var Mapa = (function () {
 
     /* Referencia de la esquina: donde dice el inventario que
        esta el cruce. Ayuda a orientarse cuando no hay teselas. */
-    if (o.referencia && isFinite(o.referencia.lat)) {
+    if (puntoValido(o.referencia)) {
       refEsquina = L.marker([o.referencia.lat, o.referencia.lon], {
         icon: icono('ref'), interactive: false, keyboard: false
       }).addTo(mapa);
     }
 
-    if (punto.acc) {
+    if (esCoord(punto.acc) && punto.acc > 0) {
       circulo = L.circle([punto.lat, punto.lon], {
         radius: punto.acc, color: '#1a73e8', weight: 1,
         fillColor: '#1a73e8', fillOpacity: 0.10, interactive: false
@@ -125,7 +142,7 @@ var Mapa = (function () {
   }
 
   function centrarEn(lat, lon) {
-    if (mapa) mapa.setView([lat, lon], mapa.getZoom());
+    if (mapa && esCoord(lat) && esCoord(lon)) mapa.setView([lat, lon], mapa.getZoom());
   }
 
   function destruir() {
@@ -142,6 +159,7 @@ var Mapa = (function () {
     desplazamiento: desplazamiento,
     centrarEn: centrarEn,
     destruir: destruir,
-    activo: activo
+    activo: activo,
+    esCoord: esCoord
   };
 })();

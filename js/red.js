@@ -23,7 +23,8 @@ var Red = (function () {
   function camaras() {
     return Almacen.relevados().elementos.filter(function (e) {
       return e.tipo === 'camara_inspeccion' && e.activo !== false
-          && isFinite(e.lat) && isFinite(e.lon);
+          && typeof e.lat === 'number' && isFinite(e.lat)
+          && typeof e.lon === 'number' && isFinite(e.lon);
     });
   }
 

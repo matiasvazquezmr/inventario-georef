@@ -365,8 +365,12 @@ var Ficha = (function () {
       +   '<button class="boton" id="btnGuardar" type="button">Continuar</button>'
       + '</div>';
 
+    /* La referencia es la coordenada de la esquina según el
+       inventario. Un elemento suelto no tiene ninguna.        */
+    var ref = (Mapa.esCoord(e.inst.lat) && Mapa.esCoord(e.inst.lon))
+            ? { lat: e.inst.lat, lon: e.inst.lon } : null;
     Mapa.crear('mapa', { lat: e.punto.lat, lon: e.punto.lon, acc: e.punto.acc },
-               { referencia: { lat: e.inst.lat, lon: e.inst.lon } });
+               { referencia: ref });
     Mapa.alMoverse(actualizarInfo);
     actualizarInfo();
 
